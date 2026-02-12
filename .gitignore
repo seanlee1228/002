@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# system log
+system.log
+
 # env files (can opt-in for committing if needed)
 .env*
 
@@ -39,3 +42,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# local database
+*.db
+
+# cursor IDE
+.cursor/

@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id @default(cuid())
+  name     String
+  username String @unique
+  password String
+  role     String @default("CLASS_TEACHER")
+
+  classId      String?
+  class        Class?  @relation("ClassTeacher", fields: [classId], references: [id])
+  managedGrade Int?    // 年级负责人/值日教师负责的年级 (1/2/3...)
+
+  scores      Score[]
+  inspections InspectionItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Class {
+  id      String @id @default(cuid())
+  name    String
+  grade   Int
+  section Int
+
+  teachers User[]  @relation("ClassTeacher")
+  scores   Score[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([grade, section])
+}
+
+model InspectionItem {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  maxScore    Float   @default(10)
+  date        String
+  targetGrade Int?    // null=全校通用, 1/2/3=年级专属
+
+  createdBy String
+  creator   User   @relation(fields: [createdBy], references: [id])
+
+  scores Score[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Score {
+  id      String  @id @default(cuid())
+  score   Float
+  comment String?
+
+  classId          String
+  class            Class          @relation(fields: [classId], references: [id])
+  inspectionItemId String
+  inspectionItem   InspectionItem @relation(fields: [inspectionItemId], references: [id])
+  scoredById       String
+  scoredBy         User           @relation(fields: [scoredById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, inspectionItemId])
+}
+
+model Semester {
+  id        String  @id @default(cuid())
+  name      String
+  startDate String
+  endDate   String
+  isCurrent Boolean @default(false)
+}

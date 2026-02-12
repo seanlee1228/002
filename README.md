@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 班级常规评分系统
 
-## Getting Started
+学校班级常规检查评分管理平台，支持管理员发布每日检查项、值日老师对班级进行评分、班主任查看多维度成绩统计。
 
-First, run the development server:
+## 技术栈
+
+- **框架**: Next.js 16 (App Router)
+- **UI**: Tailwind CSS + shadcn/ui
+- **数据库**: SQLite + Prisma ORM
+- **认证**: NextAuth.js (角色权限管理)
+- **图表**: Recharts
+
+## 快速开始
 
 ```bash
+# 安装依赖
+npm install
+
+# 初始化数据库（已有迁移文件，直接推送）
+npx prisma migrate dev
+
+# 播种测试数据
+npm run db:seed
+
+# 启动开发服务器
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 http://localhost:3000 访问系统。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 测试账号
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| 角色 | 用户名 | 密码 |
+|------|--------|------|
+| 管理员 | admin | 123456 |
+| 值日老师 | zhanglaoshi | 123456 |
+| 值日老师 | lilaoshi | 123456 |
+| 班主任 | teacher1 ~ teacher12 | 123456 |
 
-## Learn More
+## 角色功能
 
-To learn more about Next.js, take a look at the following resources:
+### 管理员 (ADMIN)
+- 仪表盘：查看全校数据概览、评分进度、趋势图表
+- 检查项管理：创建/编辑/删除每日检查项目
+- 今日评分：对班级进行评分
+- 成绩查看：查看全校/指定班级的成绩数据
+- 班级管理：管理班级信息
+- 用户管理：管理系统用户
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 值日老师 (DUTY_TEACHER)
+- 仪表盘：查看今日检查项和评分进度
+- 今日评分：选择班级逐项评分
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 班主任 (CLASS_TEACHER)
+- 仪表盘：查看本班今日得分和本周趋势
+- 成绩查看：今日 / 本周 / 本学期 / 本学年 多维度数据
