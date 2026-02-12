@@ -6,6 +6,7 @@ CREATE TABLE "User" (
     "password" TEXT NOT NULL,
     "role" TEXT NOT NULL DEFAULT 'CLASS_TEACHER',
     "classId" TEXT,
+    "managedGrade" INTEGER,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "User_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class" ("id") ON DELETE SET NULL ON UPDATE CASCADE
@@ -28,6 +29,7 @@ CREATE TABLE "InspectionItem" (
     "description" TEXT,
     "maxScore" REAL NOT NULL DEFAULT 10,
     "date" TEXT NOT NULL,
+    "targetGrade" INTEGER,
     "createdBy" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
