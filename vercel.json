@@ -1,0 +1,3 @@
+{
+  "buildCommand": "prisma generate && prisma migrate deploy && npx tsx prisma/seed.mts && next build"
+}
