@@ -1,12 +1,18 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "next-themes";
+import { HeroUIProvider } from "@heroui/react";
+import { LocaleProvider } from "@/components/locale-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <TooltipProvider>{children}</TooltipProvider>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <HeroUIProvider>
+          <LocaleProvider>{children}</LocaleProvider>
+        </HeroUIProvider>
+      </ThemeProvider>
     </SessionProvider>
   );
 }

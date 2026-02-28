@@ -3,74 +3,109 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, ClipboardCheck, Loader2 } from "lucide-react";
+  Card as HCard,
+  CardBody as HCardBody,
+  Button as HButton,
+  Chip as HChip,
+  Switch as HSwitch,
+  Spinner as HSpinner,
+  Input as HInput,
+  Textarea as HTextarea,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/react";
+import { Plus, Pencil, Trash2, Loader2, Check, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { ListPageSkeleton } from "@/components/skeletons";
 
-interface InspectionItem {
+interface CheckItem {
   id: string;
+  code: string | null;
+  module: string;
   title: string;
   description: string | null;
-  maxScore: number;
-  date: string;
-  targetGrade: number | null;
-  _count: { scores: number };
+  sortOrder: number;
+  isActive: boolean;
+  isDynamic: boolean;
+  planCategory?: string | null;
+  date?: string | null;
+  targetGrade?: number | null;
+  _count: { records: number };
+  creator?: { name: string; username: string } | null;
 }
 
-function formatDate(date: Date) {
-  return date.toISOString().split("T")[0];
+interface InspectionResponse {
+  fixedItems: CheckItem[];
+  dynamicItems: CheckItem[];
+}
+
+function formatDateStr(date: Date) {
+  return date.toLocaleDateString("en-CA");
 }
 
 export default function InspectionPage() {
   const { data: session, status } = useSession();
-  const [date, setDate] = useState(() => formatDate(new Date()));
-  const [items, setItems] = useState<InspectionItem[]>([]);
+  const [fixedItems, setFixedItems] = useState<CheckItem[]>([]);
+  const [dynamicItems, setDynamicItems] = useState<CheckItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [dynamicDateFilter, setDynamicDateFilter] = useState(() =>
+    formatDateStr(new Date())
+  );
+  const [alert, setAlert] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
-  // Create/Edit dialog
-  const [dialogOpen, setDialogOpen] = useState(false);
+  // Create/Edit modal
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formMaxScore, setFormMaxScore] = useState(10);
-  const [formDate, setFormDate] = useState(() => formatDate(new Date()));
+  const [formDate, setFormDate] = useState(() => formatDateStr(new Date()));
   const [formSubmitting, setFormSubmitting] = useState(false);
 
   // Delete confirmation
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  const isAdmin = session?.user?.role === "ADMIN";
+  const isGradeLeader = session?.user?.role === "GRADE_LEADER";
+  const canEditFixed = isAdmin; // Only ADMIN can toggle isActive / edit fixed items
+  const canEditDynamic = isAdmin;
+
+  const t = useTranslations("inspection");
+  const tc = useTranslations("common");
+  const ti = useTranslations("checkItems");
+  const CHECK_CODES = ["D-1", "D-2", "D-3", "D-4", "D-5", "D-6", "D-7", "D-8", "D-9", "W-1", "W-2", "W-3", "W-4", "W-5"];
+  const itemTitle = (item: { code?: string | null; title: string }) =>
+    item.code && CHECK_CODES.includes(item.code) ? ti(item.code) : item.title;
+  const itemDesc = (item: { code?: string | null; description?: string | null }) =>
+    item.code && CHECK_CODES.includes(item.code) ? ti(`desc.${item.code}`) : (item.description ?? "");
 
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/inspection?date=${date}`);
+      const params = new URLSearchParams();
+      params.set("date", dynamicDateFilter);
+      const res = await fetch(`/api/inspection?${params}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "加载失败");
+        throw new Error(err.error || tc("loadFailed"));
       }
-      const data = await res.json();
-      setItems(data);
+      const data: InspectionResponse = await res.json();
+      setFixedItems(data.fixedItems ?? []);
+      setDynamicItems(data.dynamicItems ?? []);
     } catch (err) {
-      setAlert({ type: "error", message: err instanceof Error ? err.message : "加载失败" });
-      setItems([]);
+      setAlert({
+        type: "error",
+        message: err instanceof Error ? err.message : tc("loadFailed"),
+      });
+      setFixedItems([]);
+      setDynamicItems([]);
     } finally {
       setLoading(false);
     }
@@ -79,35 +114,34 @@ export default function InspectionPage() {
   useEffect(() => {
     if (status === "unauthenticated") return;
     fetchItems();
-  }, [status, date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, dynamicDateFilter, tc]);
 
   const showAlert = (type: "success" | "error", message: string) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 3000);
   };
 
-  const openCreateDialog = () => {
+  const openCreateModal = () => {
     setEditingId(null);
     setFormTitle("");
     setFormDescription("");
-    setFormMaxScore(10);
-    setFormDate(date);
-    setDialogOpen(true);
+    setFormDate(dynamicDateFilter);
+    setModalOpen(true);
   };
 
-  const openEditDialog = (item: InspectionItem) => {
+  const openEditModal = (item: CheckItem) => {
     setEditingId(item.id);
     setFormTitle(item.title);
     setFormDescription(item.description ?? "");
-    setFormMaxScore(item.maxScore);
-    setFormDate(item.date);
-    setDialogOpen(true);
+    setFormDate(item.date ?? dynamicDateFilter);
+    setModalOpen(true);
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) {
-      showAlert("error", "请输入标题");
+      showAlert("error", t("titleRequired"));
       return;
     }
     setFormSubmitting(true);
@@ -119,14 +153,13 @@ export default function InspectionPage() {
           body: JSON.stringify({
             title: formTitle.trim(),
             description: formDescription.trim() || undefined,
-            maxScore: formMaxScore,
           }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "更新失败");
+          throw new Error(err.error || tc("updateFailed"));
         }
-        showAlert("success", "更新成功");
+        showAlert("success", tc("updateSuccess"));
       } else {
         const res = await fetch("/api/inspection", {
           method: "POST",
@@ -134,282 +167,512 @@ export default function InspectionPage() {
           body: JSON.stringify({
             title: formTitle.trim(),
             description: formDescription.trim() || undefined,
-            maxScore: formMaxScore,
             date: formDate,
           }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "创建失败");
+          throw new Error(err.error || tc("createFailed"));
         }
-        showAlert("success", "创建成功");
+        showAlert("success", tc("createSuccess"));
       }
-      setDialogOpen(false);
+      setModalOpen(false);
       fetchItems();
     } catch (err) {
-      showAlert("error", err instanceof Error ? err.message : "操作失败");
+      showAlert("error", err instanceof Error ? err.message : tc("operationFailed"));
     } finally {
       setFormSubmitting(false);
     }
   };
 
-  const openDeleteDialog = (id: string) => {
+  const openDeleteModal = (id: string) => {
     setDeleteId(id);
-    setDeleteDialogOpen(true);
+    setDeleteModalOpen(true);
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/api/inspection/${deleteId}`, { method: "DELETE" });
+      const res = await fetch(`/api/inspection/${deleteId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "删除失败");
+        throw new Error(err.error || tc("deleteFailed"));
       }
-      showAlert("success", "删除成功");
-      setDeleteDialogOpen(false);
+      showAlert("success", tc("deleteSuccess"));
+      setDeleteModalOpen(false);
       setDeleteId(null);
       fetchItems();
     } catch (err) {
-      showAlert("error", err instanceof Error ? err.message : "删除失败");
+      showAlert("error", err instanceof Error ? err.message : tc("deleteFailed"));
     } finally {
       setDeleteSubmitting(false);
     }
   };
 
+  const handleFixedToggle = async (item: CheckItem, checked: boolean) => {
+    if (!canEditFixed) return;
+    try {
+      const res = await fetch(`/api/inspection/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: checked }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || tc("updateFailed"));
+      }
+      showAlert("success", checked ? tc("enabled") : tc("disabled"));
+      fetchItems();
+    } catch (err) {
+      showAlert("error", err instanceof Error ? err.message : tc("operationFailed"));
+    }
+  };
+
+  const handleFixedEdit = (item: CheckItem) => {
+    if (!canEditFixed) return;
+    openEditModal(item);
+  };
+
+  const cyclePlanCategory = async (item: CheckItem) => {
+    if (!canEditFixed) return;
+    // 只在 resident ↔ rotating 之间切换
+    const nextVal = item.planCategory === "resident" ? "rotating" : "resident";
+
+    // 常驻项上限 3 个校验
+    if (nextVal === "resident") {
+      const currentResidentCount = fixedItems.filter(
+        (fi) => fi.planCategory === "resident" && fi.id !== item.id
+      ).length;
+      if (currentResidentCount >= 3) {
+        showAlert("error", t("residentMax"));
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch(`/api/inspection/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planCategory: nextVal }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || tc("updateFailed"));
+      }
+      showAlert("success", tc("updateSuccess"));
+      fetchItems();
+    } catch (err) {
+      showAlert("error", err instanceof Error ? err.message : tc("operationFailed"));
+    }
+  };
+
+  const canEditDynamicItem = (item: CheckItem) => {
+    if (!canEditDynamic) return false;
+    if (isAdmin) return true;
+    if (isGradeLeader && item.targetGrade != null) {
+      return item.targetGrade === session?.user?.managedGrade;
+    }
+    return item.targetGrade == null; // 全校 dynamic items
+  };
+
   if (status === "loading" || status === "unauthenticated") {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center text-muted-foreground">加载中...</div>
-      </div>
-    );
+    return <ListPageSkeleton cols={3} />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ClipboardCheck className="h-7 w-7 text-blue-600" />
-          检查项管理
-        </h1>
-        <Button onClick={openCreateDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          新增检查项
-        </Button>
-      </div>
-
-      {/* Date filter */}
-      <div className="flex items-center gap-4">
-        <Label htmlFor="date-filter" className="text-sm font-medium">
-          日期
-        </Label>
-        <Input
-          id="date-filter"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-40"
-        />
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-v-text1">{t("title")}</h1>
+        <p className="text-v-text3 mt-1">{t("subtitle")}</p>
       </div>
 
       {/* Alert */}
       {alert && (
-        <div
-          className={`px-4 py-3 rounded-lg ${
-            alert.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
-        >
-          {alert.message}
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div
+            className={`px-6 py-4 rounded-xl shadow-lg text-center pointer-events-auto ${
+              alert.type === "success"
+                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-sm"
+                : "bg-red-500/10 text-red-400 border border-red-500/20 backdrop-blur-sm"
+            }`}
+          >
+            {alert.message}
+          </div>
         </div>
       )}
 
-      {/* Item list */}
-      {loading ? (
-        <div className="flex items-center justify-center min-h-[200px]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : items.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <ClipboardCheck className="h-12 w-12 text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground font-medium">
-              该日期暂无检查项
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              点击「新增检查项」创建今日检查项
-            </p>
-            <Button onClick={openCreateDialog} className="mt-4">
-              <Plus className="h-4 w-4 mr-2" />
-              新增检查项
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <Card
-              key={item.id}
-              className="transition-shadow hover:shadow-md"
-            >
-              <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-                <CardTitle className="text-base font-semibold">
-                  {item.title}
-                </CardTitle>
-                <div className="flex gap-1.5 flex-shrink-0">
-                  {item.targetGrade != null ? (
-                    <Badge variant="outline" className="text-orange-700 border-orange-300 bg-orange-50 text-xs">
-                      {item.targetGrade}年级专属
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-blue-700 border-blue-300 bg-blue-50 text-xs">
-                      全校
-                    </Badge>
+      {/* Fixed Items */}
+      <section>
+        <h2 className="text-lg font-semibold text-v-text1 mb-4">{t("fixedItems")}</h2>
+        {loading ? (
+          <div className="flex items-center justify-center min-h-[200px]">
+            <HSpinner size="lg" color="primary" />
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {fixedItems.map((item) => (
+              <HCard
+                key={item.id}
+                className="bg-v-card border border-v-border hover:bg-v-hover transition-colors"
+              >
+                <HCardBody className="p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      {item.code && (
+                        <HChip
+                          variant="flat"
+                          size="sm"
+                          classNames={{
+                            base: "bg-v-input",
+                            content: "text-v-text2 text-xs font-mono",
+                          }}
+                        >
+                          {item.code}
+                        </HChip>
+                      )}
+                      <HChip
+                        variant="bordered"
+                        size="sm"
+                        classNames={{
+                          base: "border-blue-500/30",
+                          content: "text-blue-400 text-xs",
+                        }}
+                      >
+                        {item.module === "DAILY" ? t("daily") : t("weekly")}
+                      </HChip>
+                      {item.module === "DAILY" && !item.isDynamic && (
+                        <HChip
+                          variant="flat"
+                          size="sm"
+                          className={canEditFixed ? "cursor-pointer" : ""}
+                          classNames={{
+                            base: item.planCategory === "resident"
+                              ? "bg-emerald-500/15"
+                              : item.planCategory === "rotating"
+                                ? "bg-amber-500/15"
+                                : "bg-v-input",
+                            content: item.planCategory === "resident"
+                              ? "text-emerald-400 text-xs"
+                              : item.planCategory === "rotating"
+                                ? "text-amber-400 text-xs"
+                                : "text-v-text3 text-xs",
+                          }}
+                          onClick={canEditFixed ? () => cyclePlanCategory(item) : undefined}
+                        >
+                          {item.planCategory === "resident"
+                            ? t("categoryResident")
+                            : item.planCategory === "rotating"
+                              ? t("categoryRotating")
+                              : t("categoryAuto")}
+                        </HChip>
+                      )}
+                    </div>
+                    {canEditFixed && (
+                      <HSwitch
+                        size="sm"
+                        isSelected={item.isActive}
+                        onValueChange={(checked) =>
+                          handleFixedToggle(item, checked)
+                        }
+                        thumbIcon={({ isSelected, className }) =>
+                          isSelected ? <Check className={className} /> : <X className={className} />
+                        }
+                        classNames={{
+                          wrapper: "group-data-[selected=true]:bg-emerald-500",
+                          thumb: "group-data-[selected=true]:bg-white",
+                        }}
+                      />
+                    )}
+                  </div>
+                  <h3 className="text-base font-semibold text-v-text1">
+                    {itemTitle(item)}
+                  </h3>
+                  {itemDesc(item) && (
+                    <p className="text-sm text-v-text3 line-clamp-2">
+                      {itemDesc(item)}
+                    </p>
                   )}
-                  <Badge variant="secondary">
-                    满分 {item.maxScore}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {item.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {item.description}
-                  </p>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    已评分 {item._count.scores} 次
-                  </span>
-                  {/* GRADE_LEADER 只能编辑/删除自己年级的专属项 */}
-                  {(session?.user?.role === "ADMIN" ||
-                    (session?.user?.role === "GRADE_LEADER" &&
-                      item.targetGrade != null &&
-                      item.targetGrade === session?.user?.managedGrade)) && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-v-text4">
+                      {t("recordCount", { count: item._count.records })}
+                    </span>
+                    {canEditFixed && (
+                      <HButton
+                        variant="bordered"
                         size="sm"
-                        onClick={() => openEditDialog(item)}
+                        className="border-v-border-input text-v-text3 hover:text-v-text1"
+                        startContent={<Pencil className="h-3.5 w-3.5" />}
+                        onPress={() => handleFixedEdit(item)}
                       >
-                        <Pencil className="h-3.5 w-3.5 mr-1" />
-                        编辑
-                      </Button>
-                      <Button
-                        variant="outline"
+                        {tc("edit")}
+                      </HButton>
+                    )}
+                  </div>
+                </HCardBody>
+              </HCard>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Dynamic Items */}
+      <section>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <h2 className="text-lg font-semibold text-v-text1">{t("dynamicItems")}</h2>
+          <div className="flex items-center gap-3">
+            <HInput
+              type="date"
+              value={dynamicDateFilter}
+              onValueChange={setDynamicDateFilter}
+              variant="bordered"
+              size="sm"
+              className="w-40"
+              classNames={{
+                inputWrapper: "border-v-border-input bg-v-input",
+                input: "text-v-text2 placeholder:text-v-text4",
+              }}
+            />
+            {canEditDynamic && (
+              <HButton
+                color="primary"
+                size="sm"
+                startContent={<Plus className="h-4 w-4" />}
+                onPress={openCreateModal}
+              >
+                {t("addDynamic")}
+              </HButton>
+            )}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center min-h-[120px]">
+            <HSpinner size="lg" color="primary" />
+          </div>
+        ) : dynamicItems.length === 0 ? (
+          <HCard className="bg-v-card border border-dashed border-v-border">
+            <HCardBody className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-v-text3 font-medium">{t("noDynamicForDate")}</p>
+              <p className="text-sm text-v-text4 mt-1">
+                {canEditDynamic ? t("addDynamicHint") : tc("noData")}
+              </p>
+              {canEditDynamic && (
+                <HButton
+                  color="primary"
+                  size="sm"
+                  className="mt-4"
+                  startContent={<Plus className="h-4 w-4" />}
+                  onPress={openCreateModal}
+                >
+                  {t("addDynamic")}
+                </HButton>
+              )}
+            </HCardBody>
+          </HCard>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {dynamicItems.map((item) => (
+              <HCard
+                key={item.id}
+                className="bg-v-card border border-v-border hover:bg-v-hover transition-colors"
+              >
+                <HCardBody className="p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-base font-semibold text-v-text1">
+                      {itemTitle(item)}
+                    </h3>
+                    {item.targetGrade != null ? (
+                      <HChip
+                        variant="bordered"
                         size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => openDeleteDialog(item.id)}
+                        classNames={{
+                          base: "border-orange-500/30",
+                          content: "text-orange-400 text-xs",
+                        }}
                       >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        删除
-                      </Button>
+                        {tc(`gradeNames.${item.targetGrade}`)}
+                      </HChip>
+                    ) : (
+                      <HChip
+                        variant="bordered"
+                        size="sm"
+                        classNames={{
+                          base: "border-blue-500/30",
+                          content: "text-blue-400 text-xs",
+                        }}
+                      >
+                        {tc("allSchool")}
+                      </HChip>
+                    )}
+                  </div>
+                  {itemDesc(item) && (
+                    <p className="text-sm text-v-text3 line-clamp-2">
+                      {itemDesc(item)}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between text-xs text-v-text4">
+                    <span>{item.date ?? "-"}</span>
+                    <span>{t("recordCount", { count: item._count.records })}</span>
+                  </div>
+                  {canEditDynamicItem(item) && (
+                    <div className="flex gap-2 pt-1">
+                      <HButton
+                        variant="bordered"
+                        size="sm"
+                        className="border-v-border-input text-v-text3 hover:text-v-text1"
+                        startContent={<Pencil className="h-3.5 w-3.5" />}
+                        onPress={() => openEditModal(item)}
+                      >
+                        {tc("edit")}
+                      </HButton>
+                      <HButton
+                        variant="bordered"
+                        size="sm"
+                        className="border-red-500/20 text-red-400 hover:bg-red-500/10"
+                        startContent={<Trash2 className="h-3.5 w-3.5" />}
+                        onPress={() => openDeleteModal(item.id)}
+                      >
+                        {tc("delete")}
+                      </HButton>
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                </HCardBody>
+              </HCard>
+            ))}
+          </div>
+        )}
+      </section>
 
-      {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingId ? "编辑检查项" : "新增检查项"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleFormSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="form-title">标题 *</Label>
-              <Input
-                id="form-title"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="请输入标题"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="form-description">描述</Label>
-              <Textarea
-                id="form-description"
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="可选"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="form-maxScore">满分</Label>
-              <Input
-                id="form-maxScore"
-                type="number"
-                min={1}
-                max={100}
-                value={formMaxScore}
-                onChange={(e) => setFormMaxScore(Number(e.target.value))}
-              />
-            </div>
-            {!editingId && (
-              <div className="space-y-2">
-                <Label htmlFor="form-date">日期</Label>
-                <Input
-                  id="form-date"
-                  type="date"
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
+      {/* Create/Edit Modal */}
+      <Modal
+        isOpen={modalOpen}
+        onOpenChange={setModalOpen}
+        placement="center"
+        classNames={{
+          base: "bg-v-card border border-v-border",
+          header: "border-b border-v-border",
+          footer: "border-t border-v-border",
+        }}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <form onSubmit={handleFormSubmit}>
+              <ModalHeader className="text-v-text1">
+                {editingId ? t("editTitle") : t("createTitle")}
+              </ModalHeader>
+              <ModalBody className="space-y-4">
+                <HInput
+                  label={t("titleLabel")}
+                  labelPlacement="outside"
+                  placeholder={t("titlePlaceholder")}
+                  value={formTitle}
+                  onValueChange={setFormTitle}
+                  isRequired
+                  variant="bordered"
+                  classNames={{
+                    label: "text-v-text2 font-medium",
+                    inputWrapper: "border-v-border-input bg-v-input",
+                    input: "text-v-text1 placeholder:text-v-text4",
+                  }}
                 />
-              </div>
-            )}
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  取消
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={formSubmitting}>
-                {formSubmitting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : null}
-                {editingId ? "保存" : "创建"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+                <HTextarea
+                  label={t("descriptionLabel")}
+                  labelPlacement="outside"
+                  placeholder={t("descriptionPlaceholder")}
+                  value={formDescription}
+                  onValueChange={setFormDescription}
+                  minRows={3}
+                  variant="bordered"
+                  classNames={{
+                    base: "w-full",
+                    label: "text-v-text2 font-medium",
+                    inputWrapper: "border-v-border-input bg-v-input",
+                    input: "text-v-text1 placeholder:text-v-text4",
+                  }}
+                />
+                {!editingId && (
+                  <HInput
+                    type="date"
+                    label={t("dateLabel")}
+                    labelPlacement="outside"
+                    value={formDate}
+                    onValueChange={setFormDate}
+                    variant="bordered"
+                    classNames={{
+                      label: "text-v-text2 font-medium",
+                      inputWrapper: "border-v-border-input bg-v-input",
+                      input: "text-v-text1",
+                    }}
+                  />
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <HButton
+                  variant="bordered"
+                  className="border-v-border-input text-v-text3"
+                  onPress={onClose}
+                >
+                  {tc("cancel")}
+                </HButton>
+                <HButton
+                  type="submit"
+                  isLoading={formSubmitting}
+                  spinner={<Loader2 className="h-4 w-4 animate-spin" />}
+                  color="primary"
+                >
+                  {editingId ? tc("save") : tc("create")}
+                </HButton>
+              </ModalFooter>
+            </form>
+          )}
+        </ModalContent>
+      </Modal>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-sm">
-            确定要删除该检查项吗？删除后相关评分记录也将被移除。
-          </p>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">取消</Button>
-            </DialogClose>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteSubmitting}
-            >
-              {deleteSubmitting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : null}
-              删除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        placement="center"
+        classNames={{
+          base: "bg-v-card border border-v-border",
+          header: "border-b border-v-border",
+          footer: "border-t border-v-border",
+        }}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="text-v-text1">{tc("confirmDelete")}</ModalHeader>
+              <ModalBody>
+                <p className="text-v-text3 text-sm">
+                  {t("deleteConfirm")}
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <HButton
+                  variant="bordered"
+                  className="border-v-border-input text-v-text3"
+                  onPress={onClose}
+                >
+                  {tc("cancel")}
+                </HButton>
+                <HButton
+                  color="danger"
+                  isLoading={deleteSubmitting}
+                  spinner={<Loader2 className="h-4 w-4 animate-spin" />}
+                  onPress={handleDelete}
+                >
+                  {tc("delete")}
+                </HButton>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

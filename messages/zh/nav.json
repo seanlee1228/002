@@ -1,0 +1,25 @@
+{
+  "dashboard": "仪表盘",
+  "dailyPlan": "检查计划",
+  "inspection": "检查项管理",
+  "scoring": "日常检查",
+  "weeklyReview": "周评",
+  "dutyHistory": "检查记录",
+  "scores": "成绩报表",
+  "classes": "班级管理",
+  "users": "用户管理",
+  "logs": "系统日志",
+  "aiPanel": "AI 面板",
+  "serverMonitor": "服务器监控",
+  "attendanceSystem": "室外课考勤系统",
+  "attendance": "考勤管理",
+  "attendanceSetup": "考勤设置",
+  "devTag": "（开发中）",
+  "roles": {
+    "ADMIN": "管理员",
+    "GRADE_LEADER": "年级负责人",
+    "DUTY_TEACHER": "值日老师",
+    "SUBJECT_TEACHER": "任课教师",
+    "CLASS_TEACHER": "班主任"
+  }
+}

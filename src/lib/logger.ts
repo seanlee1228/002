@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from "fs/promises";
 import path from "path";
 
 // 日志文件路径：项目根目录 system.log
@@ -53,17 +53,16 @@ interface LogEntry {
 }
 
 /**
- * 核心写入方法：追加一行 JSON 到日志文件
+ * 核心写入方法：追加一行 JSON 到日志文件（异步，不阻塞事件循环）
  */
 function appendLog(entry: LogEntry): void {
-  try {
-    const line = JSON.stringify(entry) + "\n";
-    fs.appendFileSync(LOG_FILE, line, "utf-8");
-  } catch (err) {
+  const line = JSON.stringify(entry) + "\n";
+  // 使用异步写入，fire-and-forget，避免阻塞请求处理
+  fs.appendFile(LOG_FILE, line, "utf-8").catch((err) => {
     // 日志写入失败时回退到 console，避免影响业务
     console.error("[Logger] Failed to write log:", err);
-    console.error("[Logger] Original entry:", JSON.stringify(entry));
-  }
+    console.error("[Logger] Original entry:", line);
+  });
 }
 
 /**
@@ -111,7 +110,7 @@ export function logAuth(
  * 记录数据变更操作（增删改）
  */
 export function logDataChange(
-  action: "CREATE" | "UPDATE" | "DELETE" | "UPSERT",
+  action: "CREATE" | "UPDATE" | "DELETE" | "UPSERT" | "SOFT_DELETE",
   user: { name?: string | null; username?: string | null; role?: string | null },
   model: string,
   data: unknown,

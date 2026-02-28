@@ -2,10 +2,18 @@ import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { logAuth, getClientIP } from "@/lib/logger";
 
-const handler = NextAuth(authOptions);
+const authHandler = NextAuth(authOptions);
+
+type RouteContext = { params: Promise<{ nextauth: string[] }> };
+
+// 包装 handler，将 Next.js 16 的 async params 解包后传给 next-auth v4
+async function wrappedGET(request: Request, context: RouteContext) {
+  const { nextauth } = await context.params;
+  return (authHandler as Function)(request, { params: { nextauth } });
+}
 
 // 包装 POST handler，在登录请求时记录客户端 IP
-async function wrappedPOST(request: Request, context: unknown) {
+async function wrappedPOST(request: Request, context: RouteContext) {
   const ip = getClientIP(request);
 
   // 检查是否是登录请求（credentials callback）
@@ -24,7 +32,8 @@ async function wrappedPOST(request: Request, context: unknown) {
     }
   }
 
-  return (handler as Function)(request, context);
+  const { nextauth } = await context.params;
+  return (authHandler as Function)(request, { params: { nextauth } });
 }
 
-export { handler as GET, wrappedPOST as POST };
+export { wrappedGET as GET, wrappedPOST as POST };

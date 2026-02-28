@@ -1,6 +1,6 @@
 @import "tailwindcss";
+@source '../node_modules/@heroui/theme/dist';
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -45,15 +45,66 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Semantic theme tokens */
+  --color-v-page: var(--v-page);
+  --color-v-card: var(--v-card);
+  --color-v-input: var(--v-input);
+  --color-v-hover: var(--v-hover);
+  --color-v-thead: var(--v-thead);
+  --color-v-text1: var(--v-text1);
+  --color-v-text2: var(--v-text2);
+  --color-v-text3: var(--v-text3);
+  --color-v-text4: var(--v-text4);
+  --color-v-border: var(--v-border);
+  --color-v-border-input: var(--v-border-input);
+  --color-v-border-hover: var(--v-border-hover);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
+
+  /* ===== HeroUI Layout CSS Variables ===== */
+  /* (HeroUI Tailwind plugin 未注册到 TW v4，需手动注入) */
+  --heroui-font-size-tiny: 0.75rem;
+  --heroui-font-size-small: 0.875rem;
+  --heroui-font-size-medium: 1rem;
+  --heroui-font-size-large: 1.125rem;
+  --heroui-line-height-tiny: 1rem;
+  --heroui-line-height-small: 1.25rem;
+  --heroui-line-height-medium: 1.5rem;
+  --heroui-line-height-large: 1.75rem;
+  --heroui-radius-small: 8px;
+  --heroui-radius-medium: 12px;
+  --heroui-radius-large: 14px;
+  --heroui-border-width-small: 1px;
+  --heroui-border-width-medium: 2px;
+  --heroui-border-width-large: 3px;
+  --heroui-divider-weight: 1px;
+  --heroui-disabled-opacity: .5;
+  --heroui-hover-opacity: .8;
+  --heroui-box-shadow-small: 0px 0px 5px 0px rgb(0 0 0 / 0.02), 0px 2px 10px 0px rgb(0 0 0 / 0.06), 0px 0px 1px 0px rgb(0 0 0 / 0.3);
+  --heroui-box-shadow-medium: 0px 0px 15px 0px rgb(0 0 0 / 0.03), 0px 2px 30px 0px rgb(0 0 0 / 0.08), 0px 0px 1px 0px rgb(0 0 0 / 0.3);
+  --heroui-box-shadow-large: 0px 0px 30px 0px rgb(0 0 0 / 0.04), 0px 30px 60px 0px rgb(0 0 0 / 0.12), 0px 0px 1px 0px rgb(0 0 0 / 0.3);
+
+  /* Light theme tokens */
+  --v-page: #F4F5F7;
+  --v-card: #FAFBFC;
+  --v-input: #EEEEF1;
+  --v-hover: #E8E9EC;
+  --v-thead: #F1F2F4;
+  --v-text1: #171717;
+  --v-text2: #525252;
+  --v-text3: #737373;
+  --v-text4: #A3A3A3;
+  --v-border: #E5E5E5;
+  --v-border-input: #D4D4D4;
+  --v-border-hover: #A3A3A3;
+  --background: oklch(0.975 0 0);
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  --card: oklch(0.99 0 0);
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.99 0 0);
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
@@ -72,7 +123,7 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(0.97 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -83,11 +134,31 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  /* HeroUI dark overrides */
+  --heroui-hover-opacity: .9;
+  --heroui-box-shadow-small: 0px 0px 5px 0px rgb(0 0 0 / 0.05), 0px 2px 10px 0px rgb(0 0 0 / 0.2), inset 0px 0px 1px 0px rgb(255 255 255 / 0.15);
+  --heroui-box-shadow-medium: 0px 0px 15px 0px rgb(0 0 0 / 0.06), 0px 2px 30px 0px rgb(0 0 0 / 0.22), inset 0px 0px 1px 0px rgb(255 255 255 / 0.15);
+  --heroui-box-shadow-large: 0px 0px 30px 0px rgb(0 0 0 / 0.07), 0px 30px 60px 0px rgb(0 0 0 / 0.26), inset 0px 0px 1px 0px rgb(255 255 255 / 0.15);
+
+  /* Dark theme tokens */
+  --v-page: #131315;
+  --v-card: #1A1A1D;
+  --v-input: #1F1F22;
+  --v-hover: #232326;
+  --v-thead: #1D1D20;
+  --v-text1: #EDEDED;
+  --v-text2: #A1A1A1;
+  --v-text3: #666666;
+  --v-text4: #444444;
+  --v-border: #2A2A2D;
+  --v-border-input: #37373B;
+  --v-border-hover: #47474B;
+
+  --background: oklch(0.178 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.22 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.22 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
@@ -106,7 +177,7 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.22 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -123,4 +194,71 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* HeroUI label/placeholder 暗色模式颜色适配 */
+[data-slot="label"] {
+  color: var(--v-text2) !important;
+}
+[data-slot="inner-wrapper"] input::placeholder,
+[data-slot="inner-wrapper"] textarea::placeholder {
+  color: var(--v-text4) !important;
+}
+
+/* ===========================================================================
+   HeroUI Input/Select labelPlacement — Tailwind v4 兼容性修复
+   TW v4 的 JIT 编译器无法为 HeroUI theme 中引用 --heroui-* CSS 变量的
+   复杂 arbitrary-value 工具类生成 CSS 规则。以下手动补充缺失的规则。
+   =========================================================================== */
+
+/* --- labelPlacement="outside" (非 multiline) --- */
+/* base 元素顶部留出 label 空间 */
+[data-slot="base"].justify-end[data-has-label="true"] {
+  margin-top: calc(var(--heroui-font-size-small, 0.875rem) + 10px) !important;
+}
+/* label 向上位移到 input 上方 — 直接设置 translate 属性覆盖 TW 的 -translate-y-1/2 */
+.group.justify-end[data-filled-within="true"] [data-slot="label"] {
+  translate: 0 calc(-100% - var(--heroui-font-size-small, 0.875rem) / 2 - 20px) !important;
+  inset-inline-start: 0 !important;
+}
+
+/* --- labelPlacement="inside" (bordered/faded variant, md) --- */
+/* label 在 input 内向上浮动 */
+.group:not(.justify-end):not(.items-start)[data-filled-within="true"] [data-slot="label"] {
+  translate: 0 calc(-50% - var(--heroui-font-size-small, 0.875rem) / 2 + 6px) !important;
+  scale: 0.85 !important;
+}
+
+/* --- Textarea (multiline + outside): label 为 relative 定位，不需要 translate 修复 --- */
+
+/* HeroUI: 去除阴影、缩小内边距，防止溢出父卡片 */
+[data-slot="input-wrapper"] {
+  box-shadow: none !important;
+  padding: 6px 10px !important;
+}
+/* Textarea: input-wrapper 使用 auto 高度（去掉 > 直接子选择器，textarea 是孙元素） */
+[data-slot="input-wrapper"]:has(textarea) {
+  height: auto !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+/* Textarea: inner-wrapper 的 h-full 会锁死高度，需要覆盖为 auto */
+[data-slot="inner-wrapper"]:has(textarea) {
+  height: auto !important;
+}
+/* Textarea base 容器约束 */
+[data-slot="base"]:has(textarea) {
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+/* 聚焦时阻止背景色跳变 */
+[data-slot="input-wrapper"]:focus-within {
+  background-color: inherit !important;
+}
+/* Textarea 内容区域自动增长，仅允许垂直拖拽 */
+[data-slot="input-wrapper"] textarea {
+  min-height: 1.5em !important;
+  resize: vertical !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }

@@ -1,0 +1,33 @@
+{
+  "D-1": "Classroom Cleanliness & Tidiness",
+  "D-2": "Assigned Area Cleanliness",
+  "D-3": "Pre-class Preparation",
+  "D-4": "Classroom Discipline",
+  "D-5": "Break Time Safety",
+  "D-6": "Eye Exercises",
+  "D-7": "PE Exercises",
+  "D-8": "Civility & Manners",
+  "D-9": "Dismissal & Line-up Order",
+  "dynamic": "Dyn",
+  "W-1": "Outdoor Class Attendance",
+  "W-2": "Weekly Safety Incidents",
+  "W-3": "Weekly Student Conflicts",
+  "W-4": "Weekly Parent Feedback",
+  "W-5": "Weekly Overall Class Rating",
+  "desc": {
+    "D-1": "No visible litter or stains on floor, blackboard wiped clean; no more than 1/3 of desks misaligned, cleaning tools and sports equipment in place",
+    "D-2": "Assigned area outside classroom (corridors, stairs, etc.) free of litter, no obvious man-made damage on walls",
+    "D-3": "All students seated quietly within 1 minute after the bell, no more than 2 still walking or chatting",
+    "D-4": "No more than 2 students with disruptive behavior such as lying on desk, turning to chat, or interrupting",
+    "D-5": "No running, chasing, pushing, or climbing railings in corridors, stairs, or classrooms (normal playground activity excluded)",
+    "D-6": "Class quiet after music starts, no more than 2 students with eyes open or talking",
+    "D-7": "Assembly within 3 minutes of bell, quiet and orderly lines, no more than 1/5 of students with noticeably poor form",
+    "D-8": "Neat attire, wearing uniform on required days; greeting teachers proactively; no name-calling or other uncivil behavior among students",
+    "D-9": "Orderly and quiet lines at dismissal, no students lingering without reason; lights off, windows and doors closed",
+    "W-1": "Count unexcused outdoor class absences (no prior leave request and no post-absence excuse): 0 / 1 / 2+",
+    "W-2": "Record safety incidents requiring nurse's office or higher-level attention, and their handling",
+    "W-3": "Record student conflicts requiring teacher intervention or formal reporting",
+    "W-4": "Record parent concerns submitted through official channels (phone, email, in-person, or via class teacher) requiring school response",
+    "W-5": "A (Excellent): Pass rate ≥90%, no serious/moderate fails, W-1~W-4 all 0; B (Good): 70%~89%, each ≤1; C (Warning): <70% or serious fail or any ≥2"
+  }
+}

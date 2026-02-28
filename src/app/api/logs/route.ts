@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import fs from "fs/promises";
 import path from "path";
+import { getLocale, createTranslator } from "@/lib/server-i18n";
 
 type ParsedLog = {
   timestamp?: string;
@@ -114,8 +115,10 @@ export async function GET(request: Request) {
         systemErrorCount: 0,
       });
     }
+    const locale = await getLocale();
+    const t = createTranslator(locale, "api.errors");
     return NextResponse.json(
-      { error: "Failed to read logs" },
+      { error: t("logsLoadFailed") },
       { status: 500 }
     );
   }

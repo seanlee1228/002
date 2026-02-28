@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { isManagerRole, canEditUser } from "@/lib/permissions";
 import { logDataChange, logError, getClientIP } from "@/lib/logger";
+import { getLocale, createTranslator } from "@/lib/server-i18n";
+import {
+  mapUserForAttendance,
+  syncUserDeleteToAttendance,
+  syncUserToAttendance,
+} from "@/lib/sync-attendance";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -18,22 +24,42 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 
   const ip = getClientIP(request);
+  const locale = await getLocale();
+  const t = createTranslator(locale, "api.errors");
 
   try {
     const { id } = await context.params;
     const body = await request.json();
     const { name, username, password, role, classId, managedGrade } = body;
 
+    // 参数验证
+    const VALID_ROLES = ["ADMIN", "GRADE_LEADER", "DUTY_TEACHER", "CLASS_TEACHER"];
+    if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
+      return NextResponse.json({ error: t("invalidName") || "名称不能为空" }, { status: 400 });
+    }
+    if (username !== undefined && (typeof username !== "string" || username.trim().length < 2)) {
+      return NextResponse.json({ error: t("invalidUsername") || "用户名至少 2 个字符" }, { status: 400 });
+    }
+    if (password !== undefined && (typeof password !== "string" || password.length < 4)) {
+      return NextResponse.json({ error: t("passwordTooShort") || "密码至少 4 个字符" }, { status: 400 });
+    }
+    if (role !== undefined && !VALID_ROLES.includes(role)) {
+      return NextResponse.json({ error: t("invalidRole") || "无效的角色" }, { status: 400 });
+    }
+    if (managedGrade !== undefined && managedGrade !== null && (typeof managedGrade !== "number" || managedGrade < 1 || managedGrade > 9)) {
+      return NextResponse.json({ error: "管理年级必须是 1-9 的数字" }, { status: 400 });
+    }
+
     // 查找目标用户
     const targetUser = await prisma.user.findUnique({ where: { id } });
     if (!targetUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: t("userNotFound") }, { status: 404 });
     }
 
     // GRADE_LEADER 权限检查
     if (!canEditUser(session.user.role, session.user.id, targetUser.role, targetUser.id)) {
       return NextResponse.json(
-        { error: "年级负责人不可修改管理员、其他年级负责人或自身" },
+        { error: t("gradeLeaderCannotEditTarget") },
         { status: 403 }
       );
     }
@@ -42,7 +68,7 @@ export async function PUT(request: Request, context: RouteContext) {
     if (session.user.role === "GRADE_LEADER" && role !== undefined) {
       if (role === "ADMIN" || role === "GRADE_LEADER") {
         return NextResponse.json(
-          { error: "年级负责人不可将用户角色设为管理员或年级负责人" },
+          { error: t("gradeLeaderCannotSetAdminRole") },
           { status: 403 }
         );
       }
@@ -86,11 +112,12 @@ export async function PUT(request: Request, context: RouteContext) {
     logDataChange("UPDATE", session.user as Parameters<typeof logDataChange>[1], "User", { id, ...updateData }, ip);
 
     const { password: _, ...userWithoutPassword } = user;
+    syncUserToAttendance(mapUserForAttendance(user));
     return NextResponse.json(userWithoutPassword);
   } catch (error) {
     logError("更新用户", session.user as Parameters<typeof logError>[1], error, ip);
     return NextResponse.json(
-      { error: "Failed to update user" },
+      { error: t("userUpdateFailed") },
       { status: 500 }
     );
   }
@@ -106,6 +133,8 @@ export async function DELETE(request: Request, context: RouteContext) {
   }
 
   const ip = getClientIP(request);
+  const locale = await getLocale();
+  const t = createTranslator(locale, "api.errors");
 
   try {
     const { id } = await context.params;
@@ -113,13 +142,13 @@ export async function DELETE(request: Request, context: RouteContext) {
     // 查找目标用户
     const targetUser = await prisma.user.findUnique({ where: { id } });
     if (!targetUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: t("userNotFound") }, { status: 404 });
     }
 
     // GRADE_LEADER 权限检查
     if (!canEditUser(session.user.role, session.user.id, targetUser.role, targetUser.id)) {
       return NextResponse.json(
-        { error: "年级负责人不可删除管理员、其他年级负责人或自身" },
+        { error: t("gradeLeaderCannotDeleteTarget") },
         { status: 403 }
       );
     }
@@ -127,12 +156,13 @@ export async function DELETE(request: Request, context: RouteContext) {
     await prisma.user.delete({ where: { id } });
 
     logDataChange("DELETE", session.user as Parameters<typeof logDataChange>[1], "User", { id, name: targetUser.name, username: targetUser.username }, ip);
+    syncUserDeleteToAttendance(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
     logError("删除用户", session.user as Parameters<typeof logError>[1], error, ip);
     return NextResponse.json(
-      { error: "Failed to delete user" },
+      { error: t("userDeleteFailed") },
       { status: 500 }
     );
   }

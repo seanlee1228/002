@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { logDataChange, logError, getClientIP } from "@/lib/logger";
 import { isManagerRole } from "@/lib/permissions";
+import { getLocale, createTranslator } from "@/lib/server-i18n";
+import { mapUserForAttendance, syncUserToAttendance } from "@/lib/sync-attendance";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -55,8 +57,10 @@ export async function GET() {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Users list error:", error);
+    const locale = await getLocale();
+    const t = createTranslator(locale, "api.errors");
     return NextResponse.json(
-      { error: "Failed to fetch users" },
+      { error: t("userLoadFailed") },
       { status: 500 }
     );
   }
@@ -72,14 +76,29 @@ export async function POST(request: Request) {
   }
 
   const ip = getClientIP(request);
+  const locale = await getLocale();
+  const t = createTranslator(locale, "api.errors");
 
   try {
     const body = await request.json();
     const { name, username, password, role, classId, managedGrade } = body;
 
-    if (!name || !username || !password) {
+    // 输入校验：类型 + 长度
+    if (!name || typeof name !== "string" || name.trim().length < 1 || name.length > 50) {
       return NextResponse.json(
-        { error: "name, username, and password are required" },
+        { error: t("invalidNameFormat") },
+        { status: 400 }
+      );
+    }
+    if (!username || typeof username !== "string" || username.trim().length < 2 || username.length > 30) {
+      return NextResponse.json(
+        { error: t("invalidUsernameFormat") },
+        { status: 400 }
+      );
+    }
+    if (!password || typeof password !== "string" || password.length < 4 || password.length > 100) {
+      return NextResponse.json(
+        { error: t("invalidPasswordFormat") },
         { status: 400 }
       );
     }
@@ -88,7 +107,7 @@ export async function POST(request: Request) {
     if (session.user.role === "GRADE_LEADER") {
       if (role === "ADMIN" || role === "GRADE_LEADER") {
         return NextResponse.json(
-          { error: "年级负责人不可创建管理员或年级负责人角色" },
+          { error: t("gradeLeaderCannotCreateAdmin") },
           { status: 403 }
         );
       }
@@ -115,11 +134,14 @@ export async function POST(request: Request) {
     logDataChange("CREATE", session.user, "User", { id: user.id, name, username, role: role ?? "CLASS_TEACHER", classId }, ip);
 
     const { password: _, ...userWithoutPassword } = user;
+    syncUserToAttendance(mapUserForAttendance(user));
     return NextResponse.json(userWithoutPassword);
   } catch (error) {
     logError("创建用户", session.user, error, ip);
+    const locale = await getLocale();
+    const t = createTranslator(locale, "api.errors");
     return NextResponse.json(
-      { error: "Failed to create user" },
+      { error: t("userCreateFailed") },
       { status: 500 }
     );
   }

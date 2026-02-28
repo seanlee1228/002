@@ -18,8 +18,20 @@ model User {
   class        Class?  @relation("ClassTeacher", fields: [classId], references: [id])
   managedGrade Int?    // 年级负责人/值日教师负责的年级 (1/2/3...)
 
-  scores      Score[]
-  inspections InspectionItem[]
+  // 评分记录关联
+  checkRecords         CheckRecord[] @relation("ScoredRecords")
+  originalScoredRecords CheckRecord[] @relation("OriginalScoredRecords")
+  reviewedRecords      CheckRecord[] @relation("ReviewedRecords")
+
+  createdItems    CheckItem[]     @relation("ItemCreator")
+  createdPlans    DailyPlan[]     @relation("PlanCreator")
+
+  // 考勤模块关联
+  courseSlots         CourseSlot[]        @relation("SlotTeacher")
+  substitutedSwaps   CourseSwap[]        @relation("SubstituteTeacher")
+  createdSwaps       CourseSwap[]        @relation("SwapCreator")
+  attendanceRecords  AttendanceRecord[]  @relation("AttendanceRecorder")
+  uploadedFiles      FileUploadLog[]     @relation("FileUploader")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -31,8 +43,13 @@ model Class {
   grade   Int
   section Int
 
-  teachers User[]  @relation("ClassTeacher")
-  scores   Score[]
+  teachers     User[]        @relation("ClassTeacher")
+  checkRecords CheckRecord[]
+
+  // 考勤模块关联
+  courseSlots        CourseSlot[]
+  students           Student[]
+  attendanceRecords  AttendanceRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -40,39 +57,111 @@ model Class {
   @@unique([grade, section])
 }
 
-model InspectionItem {
+// ========== 新模型 ==========
+
+// 检查项定义（固定模板 D-1~D-9, W-1~W-5 + 动态临增项）
+model CheckItem {
   id          String  @id @default(cuid())
+  code        String? @unique       // D-1...D-9, W-1...W-5（动态项为 null）
+  module      String               // "DAILY" | "WEEKLY"
   title       String
   description String?
-  maxScore    Float   @default(10)
-  date        String
-  targetGrade Int?    // null=全校通用, 1/2/3=年级专属
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+  isDynamic   Boolean @default(false) // true = D-9 类动态临增项
 
-  createdBy String
-  creator   User   @relation(fields: [createdBy], references: [id])
+  planCategory String?              // "resident" | "rotating" | null(系统自动判定)
 
-  scores Score[]
+  // 动态项专属字段
+  date        String?              // 动态项的生效日期（YYYY-MM-DD）
+  targetGrade Int?                 // null=全校, 1/2/3=年级专属
+  createdBy   String?
+  creator     User?   @relation("ItemCreator", fields: [createdBy], references: [id])
+
+  dailyPlanItems DailyPlanItem[]
+  records        CheckRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Score {
-  id      String  @id @default(cuid())
-  score   Float
-  comment String?
+// 每日检查计划（管理员预设当天检查哪些项）
+model DailyPlan {
+  id          String @id @default(cuid())
+  date        String                // YYYY-MM-DD
+  targetGrade Int?                  // null=全校通用, 1/2/3=年级专属
 
-  classId          String
-  class            Class          @relation(fields: [classId], references: [id])
-  inspectionItemId String
-  inspectionItem   InspectionItem @relation(fields: [inspectionItemId], references: [id])
-  scoredById       String
-  scoredBy         User           @relation(fields: [scoredById], references: [id])
+  items       DailyPlanItem[]
+
+  createdById String
+  createdBy   User   @relation("PlanCreator", fields: [createdById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([classId, inspectionItemId])
+  @@unique([date, targetGrade])
+}
+
+// 每日计划中的检查项
+model DailyPlanItem {
+  id          String @id @default(cuid())
+  sortOrder   Int    @default(0)
+
+  planId      String
+  plan        DailyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  checkItemId String
+  checkItem   CheckItem @relation(fields: [checkItemId], references: [id])
+
+  @@unique([planId, checkItemId])
+}
+
+// 检查记录（日评 + 周评统一存储）
+model CheckRecord {
+  id          String   @id @default(cuid())
+  date        String   // YYYY-MM-DD（日评为当天，周评为周五日期）
+
+  // 日评字段
+  passed      Boolean? // 达标=true, 不达标=false
+  severity    String?  // 不达标严重程度: "minor"(轻微) / "moderate"(一般) / "serious"(严重)
+                       // 仅当 passed=false 时有值
+
+  // 周评字段
+  optionValue String?  // W-1~W-4: "0"/"1"/"gte2"
+                       // W-5: "A"/"B"/"C"
+
+  comment     String?  // 备注/描述
+
+  // 评分来源
+  classId     String
+  class       Class     @relation(fields: [classId], references: [id])
+  checkItemId String
+  checkItem   CheckItem @relation(fields: [checkItemId], references: [id])
+  scoredById  String
+  scoredBy    User      @relation("ScoredRecords", fields: [scoredById], references: [id])
+  scoredByRole String?  // 评分人角色快照
+  scoredByName String?  // 评分人姓名快照
+
+  // 原始评分记录（高权限修正前的首次评分）
+  originalScoredById   String?
+  originalScoredBy     User?    @relation("OriginalScoredRecords", fields: [originalScoredById], references: [id])
+  originalScoredByName String?
+  originalScoredByRole String?
+  originalPassed       Boolean?
+  originalSeverity     String?
+  originalScoredAt     DateTime?
+
+  // 审核信息（高权限人员修正时填充）
+  reviewedById   String?
+  reviewedBy     User?    @relation("ReviewedRecords", fields: [reviewedById], references: [id])
+  reviewedByName String?
+  reviewedByRole String?
+  reviewedAt     DateTime?
+  reviewAction   String?  // "approved" | "revised" | null
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, checkItemId, date])
 }
 
 model Semester {
@@ -81,4 +170,138 @@ model Semester {
   startDate String
   endDate   String
   isCurrent Boolean @default(false)
+}
+
+// AI 分析结果（DeepSeek LLM 每日定时生成）
+model AiAnalysis {
+  id        String   @id @default(cuid())
+  date      String   // YYYY-MM-DD
+  scope     String   // "global" | "grade-1" | "grade-2" | "grade-3" | "duty" | "daily-recommend"
+  content   String   // JSON 字符串，结构由 scope 决定
+  model     String   @default("deepseek-chat")
+  tokens    Int      @default(0) // 用量追踪
+  createdAt DateTime @default(now())
+
+  @@unique([date, scope])
+  @@index([date])
+}
+
+// AI 模组配置（管理员可调整各模组的 Prompt / 温度 / Token 上限等）
+model AiModuleConfig {
+  scope        String   @id            // "daily-recommend" | "global" | "grade" | "duty"
+  label        String   @default("")   // 显示名称
+  description  String   @default("")   // 模组说明
+  systemPrompt String   @default("")   // 自定义 system prompt（空=使用代码默认值）
+  temperature  Float    @default(0.3)
+  maxTokens    Int      @default(2000)
+  model        String   @default("deepseek-chat")
+  isActive     Boolean  @default(true) // 是否启用该模组
+  updatedAt    DateTime @updatedAt
+}
+
+// ========== 考勤模块 ==========
+
+// 作息时间表（定义每节课的时间段）
+model PeriodSchedule {
+  id         String  @id @default(cuid())
+  periodNo   Int           // 第几节课（1, 2, 3...）
+  startTime  String        // "08:00"
+  endTime    String        // "08:40"
+  label      String?       // "第一节" / "Period 1"
+  gradeScope String @default("ALL")  // "ALL" | "G1" | "G2" | "G3"
+
+  courseSlots CourseSlot[]
+
+  @@unique([periodNo, gradeScope])
+}
+
+// 课程格子（课程表 + 任课表合并后的结果）
+model CourseSlot {
+  id         String  @id @default(cuid())
+  classId    String
+  class      Class   @relation(fields: [classId], references: [id])
+  dayOfWeek  Int           // 1=周一 ... 5=周五
+  periodId   String
+  period     PeriodSchedule @relation(fields: [periodId], references: [id])
+  subject    String        // 科目名称
+  isOutdoor  Boolean @default(false)  // 管理员标记是否为室外课
+
+  teacherId  String?
+  teacher    User?   @relation("SlotTeacher", fields: [teacherId], references: [id])
+
+  isActive   Boolean @default(true)
+
+  attendances AttendanceRecord[]
+  swaps       CourseSwap[]
+
+  @@unique([classId, dayOfWeek, periodId])
+}
+
+// 调课/代课记录
+model CourseSwap {
+  id            String   @id @default(cuid())
+  date          String         // 生效日期 YYYY-MM-DD
+  courseSlotId   String
+  courseSlot     CourseSlot @relation(fields: [courseSlotId], references: [id])
+  type          String         // "substitute"（代课）| "cancel"（取消）
+  substituteId  String?        // 代课教师 ID
+  substitute    User?   @relation("SubstituteTeacher", fields: [substituteId], references: [id])
+  reason        String?
+
+  createdById   String
+  createdBy     User    @relation("SwapCreator", fields: [createdById], references: [id])
+
+  createdAt     DateTime @default(now())
+}
+
+// 学生
+model Student {
+  id         String  @id @default(cuid())
+  name       String
+  studentNo  String? @unique
+  classId    String
+  class      Class   @relation(fields: [classId], references: [id])
+  isActive   Boolean @default(true)
+
+  attendances AttendanceRecord[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// 考勤记录（每个学生每节课一条）
+model AttendanceRecord {
+  id           String   @id @default(cuid())
+  date         String         // YYYY-MM-DD
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id])
+  courseSlotId  String
+  courseSlot    CourseSlot @relation(fields: [courseSlotId], references: [id])
+  classId      String
+  class        Class    @relation(fields: [classId], references: [id])
+  status       String         // "present" | "absent" | "excused" | "late"
+  comment      String?
+
+  recordedById String
+  recordedBy   User     @relation("AttendanceRecorder", fields: [recordedById], references: [id])
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([studentId, courseSlotId, date])
+}
+
+// 文件上传日志（记录每次上传操作）
+model FileUploadLog {
+  id           String   @id @default(cuid())
+  type         String         // "period_schedule" | "timetable" | "teacher_assignment"
+  filename     String
+  rowCount     Int      @default(0)
+  status       String         // "success" | "partial" | "error"
+  errors       String?        // JSON 格式的错误详情
+
+  uploadedById String
+  uploadedBy   User    @relation("FileUploader", fields: [uploadedById], references: [id])
+
+  createdAt    DateTime @default(now())
 }

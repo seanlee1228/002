@@ -53,7 +53,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           name: user.name,
           username: user.username,
-          role: user.role,
+          role: user.role as "ADMIN" | "GRADE_LEADER" | "DUTY_TEACHER" | "SUBJECT_TEACHER" | "CLASS_TEACHER",
           classId: user.classId,
           className: user.class?.name || null,
           managedGrade: user.managedGrade ?? null,
@@ -65,22 +65,33 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
-        token.username = (user as any).username;
-        token.classId = (user as any).classId;
-        token.className = (user as any).className;
-        token.managedGrade = (user as any).managedGrade;
+        token.role = user.role;
+        token.username = user.username;
+        token.classId = user.classId;
+        token.className = user.className;
+        token.managedGrade = user.managedGrade;
+      }
+      // 验证用户是否仍存在于数据库（防止数据库重置后 token 过期）
+      if (token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { id: true },
+        });
+        if (!dbUser) {
+          // 用户不存在，清空 token 强制重登
+          return {} as typeof token;
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
-        (session.user as any).username = token.username;
-        (session.user as any).classId = token.classId;
-        (session.user as any).className = token.className;
-        (session.user as any).managedGrade = token.managedGrade;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.username = token.username;
+        session.user.classId = token.classId;
+        session.user.className = token.className;
+        session.user.managedGrade = token.managedGrade;
       }
       return session;
     },

@@ -1,0 +1,18 @@
+{
+  "title": "Class Management",
+  "titleWithGrade": "Grade {grade} Classes",
+  "addClass": "Add Class",
+  "emptyHint": "No classes yet. Click the button above to add one.",
+  "gradeInfo": "Grade: {grade} · Section: {section}",
+  "teacher": "Teacher: {names}",
+  "editTitle": "Edit Class",
+  "createTitle": "New Class",
+  "editSubtitle": "Modify class information",
+  "createSubtitle": "Fill in new class information",
+  "nameLabel": "Class Name",
+  "namePlaceholder": "e.g. Grade 1 Class 1",
+  "gradeLabel": "Grade",
+  "sectionLabel": "Section",
+  "deleteConfirm": "Are you sure you want to delete class \"{name}\"? This will also delete all scoring records and cannot be undone.",
+  "gradeLeader": "Grade Leader"
+}

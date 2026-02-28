@@ -1,0 +1,16 @@
+# 构建产物
+.next/
+node_modules/
+
+# 数据库迁移（自动生成文件）
+prisma/migrations/
+
+# 静态资源
+public/icons/
+screenshots/
+
+# 测试脚本
+test-*.mts
+
+# 锁文件
+package-lock.json

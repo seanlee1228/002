@@ -4,8 +4,12 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isManagerRole } from "@/lib/permissions";
 import { logDataChange, logError, getClientIP } from "@/lib/logger";
+import { getLocale, createTranslator } from "@/lib/server-i18n";
 
+// GET: 获取检查项列表（固定项 + 动态项）
 export async function GET(request: Request) {
+  const locale = await getLocale();
+  const t = createTranslator(locale, "api.errors");
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -14,60 +18,54 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
+    const module = searchParams.get("module"); // "DAILY" | "WEEKLY" | null
 
-    // 构建查询条件: 全校通用项 + 当前用户年级的专属项
     const isGradeLeader = session.user.role === "GRADE_LEADER";
     const managedGrade = session.user.managedGrade;
 
-    let where: Record<string, unknown> = {};
-    if (date) {
-      if (isGradeLeader && managedGrade != null) {
-        // GRADE_LEADER: 返回全校项 + 本年级专属项
-        where = {
-          date,
-          OR: [
-            { targetGrade: null },
-            { targetGrade: managedGrade },
-          ],
-        };
-      } else {
-        where = { date };
-      }
-    } else {
-      if (isGradeLeader && managedGrade != null) {
-        where = {
-          OR: [
-            { targetGrade: null },
-            { targetGrade: managedGrade },
-          ],
-        };
-      }
+    // 固定检查项
+    const fixedWhere: Record<string, unknown> = { isDynamic: false };
+    if (module) fixedWhere.module = module;
+
+    const fixedItems = await prisma.checkItem.findMany({
+      where: fixedWhere,
+      orderBy: [{ module: "asc" }, { sortOrder: "asc" }],
+      include: { _count: { select: { records: true } } },
+    });
+
+    // 动态检查项
+    const dynamicWhere: Record<string, unknown> = { isDynamic: true };
+    if (date) dynamicWhere.date = date;
+    if (module) dynamicWhere.module = module;
+    if (isGradeLeader && managedGrade != null) {
+      dynamicWhere.OR = [{ targetGrade: null }, { targetGrade: managedGrade }];
     }
 
-    const items = await prisma.inspectionItem.findMany({
-      where,
+    const dynamicItems = await prisma.checkItem.findMany({
+      where: dynamicWhere,
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       include: {
-        _count: { select: { scores: true } },
+        _count: { select: { records: true } },
+        creator: { select: { name: true, username: true } },
       },
     });
 
-    return NextResponse.json(items);
+    return NextResponse.json({ fixedItems, dynamicItems });
   } catch (error) {
-    console.error("Inspection list error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch inspection items" },
-      { status: 500 }
-    );
+    console.error("CheckItem list error:", error);
+    return NextResponse.json({ error: t("inspectionLoadFailed") }, { status: 500 });
   }
 }
 
+// POST: 创建动态临增项（D-9 类）
 export async function POST(request: Request) {
+  const locale = await getLocale();
+  const t = createTranslator(locale, "api.errors");
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!isManagerRole(session.user.role)) {
+  if (session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -75,39 +73,53 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { title, description, maxScore, date } = body;
+    const { title, description, date } = body;
 
     if (!title || !date) {
-      return NextResponse.json(
-        { error: "title and date are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: t("titleAndDateRequired") }, { status: 400 });
     }
 
-    // GRADE_LEADER 创建的检查项自动设为年级专属
-    const targetGrade = session.user.role === "GRADE_LEADER"
-      ? session.user.managedGrade
-      : null;
+    // 仅 ADMIN 可创建，targetGrade 始终为 null（全校范围）
+    const targetGrade = null;
 
-    const item = await prisma.inspectionItem.create({
+    const item = await prisma.checkItem.create({
       data: {
+        module: "DAILY",
         title,
         description: description ?? null,
-        maxScore: maxScore ?? 10,
+        sortOrder: 9,
+        isDynamic: true,
         date,
-        createdBy: session.user.id,
         targetGrade,
+        createdBy: session.user.id,
       },
     });
 
-    logDataChange("CREATE", session.user, "InspectionItem", { id: item.id, title, date, maxScore: maxScore ?? 10, targetGrade }, ip);
+    // 自动追加到当日计划（如果有的话）
+    const existingPlan = await prisma.dailyPlan.findFirst({
+      where: { date },
+      include: { items: true },
+    });
+    if (existingPlan) {
+      await prisma.dailyPlanItem.create({
+        data: {
+          planId: existingPlan.id,
+          checkItemId: item.id,
+          sortOrder: existingPlan.items.length + 1,
+        },
+      });
+    }
+
+    logDataChange("CREATE", session.user, "CheckItem(Dynamic)", {
+      id: item.id,
+      title,
+      date,
+      targetGrade,
+    }, ip);
 
     return NextResponse.json(item);
   } catch (error) {
-    logError("创建检查项", session.user, error, ip);
-    return NextResponse.json(
-      { error: "Failed to create inspection item" },
-      { status: 500 }
-    );
+    logError("创建动态检查项", session.user, error, ip);
+    return NextResponse.json({ error: t("inspectionCreateFailed") }, { status: 500 });
   }
 }

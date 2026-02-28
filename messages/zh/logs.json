@@ -1,0 +1,21 @@
+{
+  "title": "系统日志",
+  "summary": "已加载最近 {loaded} 条，筛选命中 {filtered} 条，总计 {total} 条",
+  "download": "下载日志",
+  "refresh": "刷新",
+  "filter": "筛选",
+  "levelFilter": "级别筛选",
+  "allLevels": "全部级别",
+  "dateFrom": "起始日期",
+  "dateTo": "截止日期",
+  "clearFilter": "清空条件",
+  "searchPlaceholder": "按用户、动作、模型、IP、错误信息搜索",
+  "noLogs": "暂无日志",
+  "unknownTime": "未知时间",
+  "user": "用户",
+  "role": "角色",
+  "model": "模型",
+  "ip": "IP",
+  "error": "错误",
+  "detail": "详情"
+}

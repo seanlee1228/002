@@ -1,0 +1,18 @@
+{
+  "title": "班级管理",
+  "titleWithGrade": "{grade}年级班级管理",
+  "addClass": "新增班级",
+  "emptyHint": "暂无班级，请点击上方按钮新增",
+  "gradeInfo": "年级: {grade} · 班级: {section}",
+  "teacher": "班主任: {names}",
+  "editTitle": "编辑班级",
+  "createTitle": "新增班级",
+  "editSubtitle": "修改班级信息",
+  "createSubtitle": "填写新班级信息",
+  "nameLabel": "班级名称",
+  "namePlaceholder": "例如：一年级1班",
+  "gradeLabel": "年级",
+  "sectionLabel": "班级编号",
+  "deleteConfirm": "确定要删除班级「{name}」吗？此操作将同时删除该班级的所有评分记录，且不可恢复。",
+  "gradeLeader": "年级主管"
+}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getLocale, createTranslator } from "@/lib/server-i18n";
 import {
   startOfWeek,
   endOfWeek,
@@ -16,31 +17,23 @@ function getDateRange(period: string): { startDate: string; endDate: string } | 
   const now = new Date();
   const today = format(now, "yyyy-MM-dd");
 
-  if (period === "today") {
-    return { startDate: today, endDate: today };
-  }
+  if (period === "today") return { startDate: today, endDate: today };
   if (period === "week") {
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
     return {
-      startDate: format(weekStart, "yyyy-MM-dd"),
-      endDate: format(weekEnd, "yyyy-MM-dd"),
+      startDate: format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+      endDate: format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
     };
   }
   if (period === "month") {
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
     return {
-      startDate: format(monthStart, "yyyy-MM-dd"),
-      endDate: format(monthEnd, "yyyy-MM-dd"),
+      startDate: format(startOfMonth(now), "yyyy-MM-dd"),
+      endDate: format(endOfMonth(now), "yyyy-MM-dd"),
     };
   }
   if (period === "year") {
-    const yearStart = startOfYear(now);
-    const yearEnd = endOfYear(now);
     return {
-      startDate: format(yearStart, "yyyy-MM-dd"),
-      endDate: format(yearEnd, "yyyy-MM-dd"),
+      startDate: format(startOfYear(now), "yyyy-MM-dd"),
+      endDate: format(endOfYear(now), "yyyy-MM-dd"),
     };
   }
   return null;
@@ -52,10 +45,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const locale = await getLocale();
+  const t = createTranslator(locale, "api.errors");
+  const tl = createTranslator(locale, "api.labels");
+
   try {
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get("classId");
-    const period = searchParams.get("period") ?? "today";
+    const period = searchParams.get("period") ?? "week";
 
     if (!classId) {
       return NextResponse.json({ error: "classId is required" }, { status: 400 });
@@ -68,10 +65,7 @@ export async function GET(request: Request) {
 
     const dateRange = getDateRange(period);
     if (!dateRange) {
-      return NextResponse.json(
-        { error: "Invalid period. Use today, week, month, or year" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid period" }, { status: 400 });
     }
 
     const dateWhere =
@@ -79,68 +73,101 @@ export async function GET(request: Request) {
         ? { date: dateRange.startDate }
         : { date: { gte: dateRange.startDate, lte: dateRange.endDate } };
 
-    const scores = await prisma.score.findMany({
-      where: {
-        classId,
-        inspectionItem: dateWhere,
-      },
-      include: { inspectionItem: true },
+    // 日评记录
+    const dailyRecords = await prisma.checkRecord.findMany({
+      where: { classId, ...dateWhere, checkItem: { module: "DAILY" } },
+      include: { checkItem: true },
+      orderBy: { date: "desc" },
     });
 
-    // Group by inspection item title
-    const byTitle: Record<string, { totalScore: number; maxPossible: number; count: number }> = {};
-    for (const s of scores) {
-      const title = s.inspectionItem.title;
-      if (!byTitle[title]) {
-        byTitle[title] = { totalScore: 0, maxPossible: 0, count: 0 };
+    // 周评记录
+    const weeklyRecords = await prisma.checkRecord.findMany({
+      where: { classId, ...dateWhere, checkItem: { module: "WEEKLY" } },
+      include: { checkItem: true },
+      orderBy: { date: "desc" },
+    });
+
+    // 按检查项统计（动态项合并为"临增项"）
+    const TEMP_KEY = "D-TEMP";
+    const byItem: Record<string, { title: string; code: string | null; total: number; passed: number }> = {};
+    for (const r of dailyRecords) {
+      const isDynamic = r.checkItem.isDynamic || !r.checkItem.code;
+      const key = isDynamic ? TEMP_KEY : r.checkItem.code!;
+      if (!byItem[key]) {
+        byItem[key] = {
+          title: isDynamic ? tl("dynamicItem") : r.checkItem.title,
+          code: isDynamic ? TEMP_KEY : r.checkItem.code,
+          total: 0,
+          passed: 0,
+        };
       }
-      byTitle[title].totalScore += s.score;
-      byTitle[title].maxPossible += s.inspectionItem.maxScore;
-      byTitle[title].count += 1;
+      byItem[key].total++;
+      if (r.passed === true) byItem[key].passed++;
     }
 
-    const itemSummaries = Object.entries(byTitle)
-      .map(([title, data]) => ({
-        title,
-        totalScore: Math.round(data.totalScore * 100) / 100,
-        maxPossible: Math.round(data.maxPossible * 100) / 100,
-        scoreRate:
-          data.maxPossible > 0
-            ? Math.round((data.totalScore / data.maxPossible) * 1000) / 10
-            : 0,
-        count: data.count,
-      }))
-      .sort((a, b) => b.totalScore - a.totalScore);
+    const itemSummaries = Object.values(byItem).map((d) => ({
+      title: d.title,
+      code: d.code,
+      total: d.total,
+      passed: d.passed,
+      passRate: d.total > 0 ? Math.round((d.passed / d.total) * 100) : 0,
+    }));
 
-    const total = scores.reduce((sum, s) => sum + s.score, 0);
-    const avg = scores.length > 0 ? total / scores.length : 0;
+    const total = dailyRecords.length;
+    const passed = dailyRecords.filter((r) => r.passed === true).length;
+    const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
 
-    // Compute school-wide and grade-wide average score rates for reference lines
-    const [allSchoolScores, allGradeScores] = await Promise.all([
-      // School-wide: all classes, same period
-      prisma.score.findMany({
-        where: { inspectionItem: dateWhere },
-        include: { inspectionItem: { select: { maxScore: true } } },
+    // 全校和年级平均达标率
+    const [schoolRecords, gradeRecords] = await Promise.all([
+      prisma.checkRecord.findMany({
+        where: { ...dateWhere, checkItem: { module: "DAILY" } },
+        include: { checkItem: true },
       }),
-      // Grade-wide: same grade, same period
-      prisma.score.findMany({
+      prisma.checkRecord.findMany({
         where: {
           class: { grade: cls.grade },
-          inspectionItem: dateWhere,
+          ...dateWhere,
+          checkItem: { module: "DAILY" },
         },
-        include: { inspectionItem: { select: { maxScore: true } } },
+        include: { checkItem: true },
       }),
     ]);
 
-    const calcAvgRate = (scorelist: typeof allSchoolScores) => {
-      if (scorelist.length === 0) return 0;
-      const totalS = scorelist.reduce((sum, s) => sum + s.score, 0);
-      const totalM = scorelist.reduce((sum, s) => sum + s.inspectionItem.maxScore, 0);
-      return totalM > 0 ? Math.round((totalS / totalM) * 1000) / 10 : 0;
+    const calcPassRate = (records: Array<{ passed: boolean | null }>) => {
+      if (records.length === 0) return 0;
+      const p = records.filter((r) => r.passed === true).length;
+      return Math.round((p / records.length) * 100);
     };
 
-    const schoolAvgScoreRate = calcAvgRate(allSchoolScores);
-    const gradeAvgScoreRate = calcAvgRate(allGradeScores);
+    // 按检查项分组计算全校/年级平均达标率（动态项合并为"临增项"）
+    const calcPerItemPassRate = (records: Array<{ passed: boolean | null; checkItem: { code: string | null; isDynamic: boolean }; checkItemId: string }>) => {
+      const grouped: Record<string, { total: number; passed: number }> = {};
+      for (const r of records) {
+        const isDynamic = r.checkItem.isDynamic || !r.checkItem.code;
+        const key = isDynamic ? TEMP_KEY : r.checkItem.code!;
+        if (!grouped[key]) grouped[key] = { total: 0, passed: 0 };
+        grouped[key].total++;
+        if (r.passed === true) grouped[key].passed++;
+      }
+      const result: Record<string, number> = {};
+      for (const [key, val] of Object.entries(grouped)) {
+        result[key] = val.total > 0 ? Math.round((val.passed / val.total) * 100) : 0;
+      }
+      return result;
+    };
+
+    const schoolPerItem = calcPerItemPassRate(schoolRecords);
+    const gradePerItem = calcPerItemPassRate(gradeRecords);
+
+    // 将分项平均合并到 itemSummaries
+    const enrichedItemSummaries = itemSummaries.map((item) => {
+      const key = item.code || item.title;
+      return {
+        ...item,
+        schoolPassRate: schoolPerItem[key] ?? 0,
+        gradePassRate: gradePerItem[key] ?? 0,
+      };
+    });
 
     return NextResponse.json({
       className: cls.name,
@@ -148,17 +175,17 @@ export async function GET(request: Request) {
       grade: cls.grade,
       section: cls.section,
       period,
-      itemSummaries,
-      total: Math.round(total * 100) / 100,
-      average: Math.round(avg * 100) / 100,
-      schoolAvgScoreRate,
-      gradeAvgScoreRate,
+      passRate,
+      total,
+      passed,
+      itemSummaries: enrichedItemSummaries,
+      dailyRecords,
+      weeklyRecords,
+      schoolPassRate: calcPassRate(schoolRecords),
+      gradePassRate: calcPassRate(gradeRecords),
     });
   } catch (error) {
-    console.error("Scores detail error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch score details" },
-      { status: 500 }
-    );
+    console.error("Score detail error:", error);
+    return NextResponse.json({ error: t("detailLoadFailed") }, { status: 500 });
   }
 }

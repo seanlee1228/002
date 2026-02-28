@@ -1,0 +1,24 @@
+{
+  "dashboard": "Dashboard",
+  "dailyPlan": "Check Plan",
+  "inspection": "Inspection Mgmt",
+  "scoring": "Daily Scoring",
+  "weeklyReview": "Weekly Review",
+  "dutyHistory": "Duty History",
+  "scores": "Score Reports",
+  "classes": "Class Mgmt",
+  "users": "User Mgmt",
+  "logs": "System Logs",
+  "aiPanel": "AI Panel",
+  "serverMonitor": "Server Monitor",
+  "attendance": "Attendance",
+  "attendanceSetup": "Attendance Setup",
+  "devTag": " (Dev)",
+  "roles": {
+    "ADMIN": "Admin",
+    "GRADE_LEADER": "Grade Leader",
+    "DUTY_TEACHER": "Duty Teacher",
+    "SUBJECT_TEACHER": "Subject Teacher",
+    "CLASS_TEACHER": "Class Teacher"
+  }
+}

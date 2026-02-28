@@ -1,0 +1,10 @@
+{
+  "pageLoadError": "页面加载出错",
+  "pageLoadHint": "当前页面遇到了问题，请点击下方按钮重试。",
+  "refreshHint": "如果问题持续，请尝试刷新浏览器。",
+  "backToHome": "返回首页",
+  "globalError": "系统发生异常",
+  "globalHint": "页面遇到了一个意外错误，请尝试刷新页面。",
+  "globalContactHint": "如果问题持续出现，请联系管理员。",
+  "errorCode": "错误代码:"
+}

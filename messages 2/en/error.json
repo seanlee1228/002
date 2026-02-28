@@ -1,0 +1,10 @@
+{
+  "pageLoadError": "Page load error",
+  "pageLoadHint": "This page encountered a problem. Please click the button below to retry.",
+  "refreshHint": "If the problem persists, try refreshing the browser.",
+  "backToHome": "Back to Home",
+  "globalError": "System Error",
+  "globalHint": "The page encountered an unexpected error. Please try refreshing.",
+  "globalContactHint": "If the problem persists, contact the administrator.",
+  "errorCode": "Error code:"
+}

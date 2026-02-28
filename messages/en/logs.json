@@ -1,0 +1,21 @@
+{
+  "title": "System Logs",
+  "summary": "Loaded {loaded} recent, {filtered} filtered, {total} total",
+  "download": "Download",
+  "refresh": "Refresh",
+  "filter": "Filter",
+  "levelFilter": "Level",
+  "allLevels": "All Levels",
+  "dateFrom": "From",
+  "dateTo": "To",
+  "clearFilter": "Clear",
+  "searchPlaceholder": "Search by user, action, model, IP, or error",
+  "noLogs": "No logs",
+  "unknownTime": "Unknown time",
+  "user": "User",
+  "role": "Role",
+  "model": "Model",
+  "ip": "IP",
+  "error": "Error",
+  "detail": "Detail"
+}
