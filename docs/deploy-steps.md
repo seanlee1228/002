@@ -12,6 +12,17 @@ npm run deploy:push
 ```
 自动完成：导出班级/用户 → `git add` → `git commit`（带时间戳）→ `git push origin main`。若无变更会跳过提交。
 
+**注意：必须在项目根目录执行。** 先 `cd` 到项目目录再运行，例如：
+```bash
+cd /Users/seanlee/Desktop/00-Cursor与AI工具/开发项目/class-routine-score-system
+npm run deploy:push
+```
+
+| 报错 | 原因 | 处理 |
+|------|------|------|
+| `ENOENT ... package.json` | 当前目录不是项目根（如在用户主目录） | 先 `cd` 到项目根目录再执行 |
+| `Permission denied`（脚本） | 旧版用 `./scripts/deploy-push.sh` 且脚本无可执行权限 | 当前已改为 `sh scripts/deploy-push.sh`，无需可执行权限；若仍报错，在项目根执行 `chmod +x scripts/deploy-push.sh` 或直接用 `sh scripts/deploy-push.sh` |
+
 **服务器一条命令：**
 - 仅更新代码：`cd /www/wwwroot/scoring-system && ./scripts/server-deploy.sh`
 - 更新代码并**用本地数据替换**服务器班级/用户（需先上传 `data/classes-users.json` 到服务器 `data/` 目录）：
