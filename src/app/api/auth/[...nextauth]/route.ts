@@ -9,7 +9,7 @@ type RouteContext = { params: Promise<{ nextauth: string[] }> };
 // 包装 handler，将 Next.js 16 的 async params 解包后传给 next-auth v4
 async function wrappedGET(request: Request, context: RouteContext) {
   const { nextauth } = await context.params;
-  return (authHandler as Function)(request, { params: { nextauth } });
+  return (authHandler as (req: Request, ctx: { params: { nextauth: string[] } }) => Promise<Response>)(request, { params: { nextauth } });
 }
 
 // 包装 POST handler，在登录请求时记录客户端 IP
@@ -33,7 +33,7 @@ async function wrappedPOST(request: Request, context: RouteContext) {
   }
 
   const { nextauth } = await context.params;
-  return (authHandler as Function)(request, { params: { nextauth } });
+  return (authHandler as (req: Request, ctx: { params: { nextauth: string[] } }) => Promise<Response>)(request, { params: { nextauth } });
 }
 
 export { wrappedGET as GET, wrappedPOST as POST };

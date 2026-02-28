@@ -18,6 +18,10 @@ model User {
   class        Class?  @relation("ClassTeacher", fields: [classId], references: [id])
   managedGrade Int?    // 年级负责人/值日教师负责的年级 (1/2/3...)
 
+  // 登录安全：连续失败次数与锁定截止时间（管理员重置密码后清空）
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
   // 评分记录关联
   checkRecords         CheckRecord[] @relation("ScoredRecords")
   originalScoredRecords CheckRecord[] @relation("OriginalScoredRecords")

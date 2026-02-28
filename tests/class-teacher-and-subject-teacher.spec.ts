@@ -26,7 +26,7 @@ test.describe("CLASS_TEACHER 与 SUBJECT_TEACHER", () => {
 
   test("第一部分 CLASS_TEACHER", async ({ page }) => {
     const results: PartResult[] = [];
-    let classTeacherSidebar: string[] = [];
+    const classTeacherSidebar: string[] = [];
 
     // ========== 第一部分：CLASS_TEACHER ==========
     await page.goto(`${BASE_URL}/login`, { waitUntil: "networkidle" });

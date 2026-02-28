@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card as HCard,
   CardBody as HCardBody,
@@ -13,13 +13,26 @@ import {
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-export default function LoginPage() {
+/** 登录按钮冷却时间（秒），防止连续点击暴力尝试 */
+const LOGIN_COOLDOWN_SECONDS = 3;
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("auth");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // 从 URL 读取错误（如 NextAuth 重定向带 error=ACCOUNT_LOCKED）
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err === "ACCOUNT_LOCKED") {
+      setError(t("accountLocked"));
+    }
+  }, [searchParams, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +46,9 @@ export default function LoginPage() {
         redirect: false,
       });
 
-      if (result?.error) {
+      if (result?.error === "ACCOUNT_LOCKED") {
+        setError(t("accountLocked"));
+      } else if (result?.error) {
         setError(t("error"));
       } else {
         router.push("/");
@@ -43,8 +58,18 @@ export default function LoginPage() {
       setError(t("networkError"));
     } finally {
       setLoading(false);
+      setCooldown(LOGIN_COOLDOWN_SECONDS);
     }
   };
+
+  // 登录按钮冷却倒计时
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const submitDisabled = loading || cooldown > 0;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 dark:from-gray-950 dark:via-blue-950 dark:to-indigo-950 p-4 relative overflow-hidden">
@@ -121,15 +146,34 @@ export default function LoginPage() {
             <HButton
               type="submit"
               isLoading={loading}
+              isDisabled={submitDisabled}
               spinner={<Loader2 className="h-4 w-4 animate-spin" />}
               className="w-full h-11 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-shadow"
             >
-              {loading ? t("submitting") : t("submit")}
+              {loading
+                ? t("submitting")
+                : cooldown > 0
+                  ? `${t("submit")} (${cooldown}s)`
+                  : t("submit")}
             </HButton>
           </form>
 
         </HCardBody>
       </HCard>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-v-page">
+          <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

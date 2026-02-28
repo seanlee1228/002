@@ -634,7 +634,7 @@ export default function ServerMonitorPage() {
                   {Object.entries(sd.database.stats).map(([table, count]) => (
                     <div key={table} className="bg-v-input rounded-xl p-3 text-center">
                       <p className="text-lg font-bold text-v-text1">{count.toLocaleString()}</p>
-                      <p className="text-xs text-v-text3">{t(`dbTable_${table}` as any)}</p>
+                      <p className="text-xs text-v-text3">{(t as (key: string) => string)(`dbTable_${table}`)}</p>
                     </div>
                   ))}
                 </div>

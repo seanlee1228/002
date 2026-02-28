@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import os from "os";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 
 /**
  * 获取 CPU 使用率（通过两次采样间隔 100ms 计算）
@@ -36,8 +37,6 @@ function cpuAverage() {
  */
 function getDiskUsage(): { total: number; used: number; free: number; usagePercent: string } | null {
   try {
-    const { execSync } = require("child_process");
-    // df -k / 获取根分区，单位 KB
     const output = execSync("df -k /", { encoding: "utf-8", timeout: 5000 });
     const lines = output.trim().split("\n");
     if (lines.length < 2) return null;

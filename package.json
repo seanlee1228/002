@@ -16,6 +16,8 @@
     "sync:export-master": "node scripts/sync/export-master-snapshot.mjs",
     "data:export": "npx tsx scripts/export-data.ts",
     "data:import": "npx tsx scripts/import-data.ts",
+    "data:replace": "npm run data:clear-seed && npm run data:import",
+    "deploy:push": "sh scripts/deploy-push.sh",
     "data:clear-test": "npx tsx scripts/clear-test-data.ts",
     "data:clear-seed": "npx tsx scripts/clear-server-seed-data.ts"
   },

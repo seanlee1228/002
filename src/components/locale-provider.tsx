@@ -131,10 +131,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const initial = getInitialLocale();
-    setLocaleState(initial);
-    document.cookie = `locale=${initial};path=/;max-age=31536000`;
-    setMounted(true);
+    queueMicrotask(() => {
+      const initial = getInitialLocale();
+      setLocaleState(initial);
+      document.cookie = `locale=${initial};path=/;max-age=31536000`;
+      setMounted(true);
+    });
   }, []);
 
   const setLocale = useCallback((l: Locale) => {

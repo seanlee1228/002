@@ -155,7 +155,7 @@ export function DetailView({ data, period, compact = false }: DetailViewProps) {
       },
       series,
     };
-  }, [sortedItems, ct, t, ti]);
+  }, [sortedItems, ct, t, ti, itemTitle]);
 
   return (
     <div className={compact ? "space-y-4" : "space-y-6"}>

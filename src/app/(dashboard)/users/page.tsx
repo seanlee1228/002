@@ -506,11 +506,9 @@ export default function UsersPage() {
                     }}
                     variant="bordered"
                     classNames={{ label: "text-v-text2 font-medium", trigger: "border-v-border-input bg-v-input pe-8", value: "text-v-text2 truncate", selectorIcon: "text-v-text3 shrink-0 end-2 absolute", popoverContent: "bg-v-card border border-v-border shadow-xl rounded-xl", listbox: "text-v-text1" }}
+                    items={[{ id: "none", label: t("none") }, ...gradeOptions.map((g) => ({ id: String(g), label: tc(`gradeNames.${g}`) }))]}
                   >
-                    <HSelectItem key="none">{t("none")}</HSelectItem>
-                    {gradeOptions.map((g) => (
-                      <HSelectItem key={String(g)}>{tc(`gradeNames.${g}`)}</HSelectItem>
-                    ))}
+                    {(item) => <HSelectItem key={item.id}>{item.label}</HSelectItem>}
                   </HSelect>
                 )}
                 {formRole === "CLASS_TEACHER" && (

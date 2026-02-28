@@ -93,6 +93,8 @@ async function main() {
         role: u.role,
         classId,
         managedGrade: u.managedGrade,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       },
       update: {
         name: u.name,
@@ -100,6 +102,8 @@ async function main() {
         role: u.role,
         classId,
         managedGrade: u.managedGrade,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
       },
     });
   }

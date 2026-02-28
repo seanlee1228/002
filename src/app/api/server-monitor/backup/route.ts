@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if ((session.user as any).role !== "ADMIN") {
+  if ((session.user as { role?: string }).role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
             "Content-Length": data.length.toString(),
           },
         });
-      } catch (err) {
+      } catch {
         // tar 命令失败，回退到只下载数据库
         try { fs.unlinkSync(archivePath); } catch { /* 忽略 */ }
         return NextResponse.json(

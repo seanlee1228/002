@@ -218,9 +218,15 @@ import type { User } from "@prisma/client";
 
 ## 部署
 
-生产环境使用阿里云轻量服务器 + PM2 + Nginx。
+生产环境使用阿里云轻量服务器 + PM2 + Nginx。**每次部署请按 [docs/deploy-steps.md](docs/deploy-steps.md) 中的步骤执行。**
 
 ### 部署流程（推荐）
+
+**本机一条命令：** `npm run deploy:push`（自动导出数据 + 提交 + 推送）
+
+**服务器一条命令：** Workbench 中执行 `cd /www/wwwroot/scoring-system && ./scripts/server-deploy.sh`；若需同时用本地班级/用户替换服务器数据，先上传 `data/classes-users.json` 到服务器 `data/`，再执行 `./scripts/server-deploy.sh --with-data`。
+
+**通过 Workbench 部署**（无需本机 SSH）：阿里云控制台 → 实例 → 远程连接 → Workbench 登录 → 终端执行上述命令。详见 [docs/deploy-steps.md](docs/deploy-steps.md) 中「通过 Workbench 部署」小节。
 
 **步骤 1：本机推送代码**
 
@@ -255,6 +261,26 @@ cd /www/wwwroot/scoring-system
 | 数据库 | SQLite `prisma/prod.db` |
 
 > **注意**：`.env` 和 `*.db` 文件不随部署同步，服务器使用独立的生产配置和数据。
+
+### 同步班级/用户数据到服务器
+
+若在本地修改了班级、用户信息，需单独导出并导入到服务器：
+
+**本机导出：**
+```bash
+npm run data:export
+# 生成 data/classes-users.json
+```
+
+**传输到服务器：** 将 `data/classes-users.json` 上传到服务器 `/www/wwwroot/scoring-system/data/`（可用 Workbench 文件管理或粘贴内容）。
+
+**服务器导入：**
+```bash
+cd /www/wwwroot/scoring-system
+npm run data:import
+```
+
+完整步骤与检查清单见 **[docs/deploy-steps.md](docs/deploy-steps.md)**。
 
 ## 完整规范文档
 

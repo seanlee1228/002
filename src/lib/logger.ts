@@ -92,7 +92,7 @@ export function getClientIP(request: Request): string {
 export function logAuth(
   action: "LOGIN_SUCCESS" | "LOGIN_FAILED" | "LOGOUT",
   username: string,
-  extra?: { role?: string; ip?: string; detail?: string }
+  extra?: { role?: string; ip?: string; detail?: string; failedAttempts?: number; locked?: boolean }
 ): void {
   appendLog({
     timestamp: new Date().toISOString(),

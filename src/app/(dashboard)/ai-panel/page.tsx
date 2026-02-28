@@ -348,14 +348,14 @@ export default function AiPanelPage() {
   // History detail
   useEffect(() => {
     if (selectedHistoryDate) {
-      fetchDetail(selectedHistoryDate);
+      queueMicrotask(() => fetchDetail(selectedHistoryDate));
     }
   }, [selectedHistoryDate, fetchDetail]);
 
   // Preview scope detail
   useEffect(() => {
     if (previewScope && statusData?.date) {
-      fetchDetail(statusData.date);
+      queueMicrotask(() => fetchDetail(statusData.date));
     }
   }, [previewScope, statusData?.date, fetchDetail]);
 

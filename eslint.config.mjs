@@ -7,11 +7,14 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "_archive/**",
+    "scripts/**",
+    "prisma/seed.mts",
+    "prisma/seed-300.ts",
   ]),
 ]);
 

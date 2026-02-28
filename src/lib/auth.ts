@@ -4,6 +4,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { logAuth } from "@/lib/logger";
 
+/** 登录防暴力：每次尝试前等待（秒） */
+const LOGIN_DELAY_SECONDS = 2;
+/** 连续失败多少次后锁定账户 */
+const MAX_FAILED_ATTEMPTS = 6;
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -20,6 +25,9 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // 防暴力：每次点击登录后至少间隔一段时间再处理
+        await new Promise((r) => setTimeout(r, LOGIN_DELAY_SECONDS * 1000));
+
         const user = await prisma.user.findUnique({
           where: { username: credentials.username },
           include: { class: true },
@@ -32,19 +40,41 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // 账户已锁定（需管理员重置密码后解锁）
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          logAuth("LOGIN_FAILED", user.username, { detail: "账户已锁定" });
+          throw new Error("ACCOUNT_LOCKED");
+        }
+
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password
         );
 
         if (!isPasswordValid) {
-          logAuth("LOGIN_FAILED", credentials.username, {
+          const nextAttempts = (user.failedLoginAttempts ?? 0) + 1;
+          const lockAccount = nextAttempts >= MAX_FAILED_ATTEMPTS;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: nextAttempts,
+              lockedUntil: lockAccount ? new Date() : undefined,
+            },
+          });
+          logAuth("LOGIN_FAILED", user.username, {
             detail: "密码错误",
+            failedAttempts: nextAttempts,
+            locked: lockAccount,
           });
           return null;
         }
 
-        // 登录成功日志（IP 在 route handler 层记录）
+        // 登录成功：清零失败次数与锁定
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginAttempts: 0, lockedUntil: null },
+        });
+
         logAuth("LOGIN_SUCCESS", user.username, {
           role: user.role,
         });
@@ -101,6 +131,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 100 * 24 * 60 * 60, // 100 天
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

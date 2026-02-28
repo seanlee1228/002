@@ -48,8 +48,10 @@ export function WeeklySummary() {
   // 选中周变化时加载该周班级数据
   useEffect(() => {
     if (!selectedWeek) return;
-    setLoadingClasses(true);
-    setClasses([]);
+    queueMicrotask(() => {
+      setLoadingClasses(true);
+      setClasses([]);
+    });
     async function loadClasses() {
       try {
         const res = await fetch(`/api/scores/weekly-summary?week=${selectedWeek}`);

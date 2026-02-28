@@ -20,7 +20,9 @@ export function InspectorProfilePanel({ profile, t }: { profile: InspectorProfil
       if (saved) {
         const parsed = JSON.parse(saved);
         const today = new Date().toLocaleDateString("en-CA");
-        if (parsed.date === today) setCollapsed(parsed.collapsed);
+        if (parsed.date === today) {
+          queueMicrotask(() => setCollapsed(parsed.collapsed));
+        }
       }
     } catch { /* ignore */ }
   }, []);

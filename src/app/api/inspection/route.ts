@@ -18,14 +18,14 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
-    const module = searchParams.get("module"); // "DAILY" | "WEEKLY" | null
+    const moduleFilter = searchParams.get("module"); // "DAILY" | "WEEKLY" | null
 
     const isGradeLeader = session.user.role === "GRADE_LEADER";
     const managedGrade = session.user.managedGrade;
 
     // 固定检查项
     const fixedWhere: Record<string, unknown> = { isDynamic: false };
-    if (module) fixedWhere.module = module;
+    if (moduleFilter) fixedWhere.module = moduleFilter;
 
     const fixedItems = await prisma.checkItem.findMany({
       where: fixedWhere,
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     // 动态检查项
     const dynamicWhere: Record<string, unknown> = { isDynamic: true };
     if (date) dynamicWhere.date = date;
-    if (module) dynamicWhere.module = module;
+    if (moduleFilter) dynamicWhere.module = moduleFilter;
     if (isGradeLeader && managedGrade != null) {
       dynamicWhere.OR = [{ targetGrade: null }, { targetGrade: managedGrade }];
     }

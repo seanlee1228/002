@@ -99,6 +99,10 @@ export async function PUT(request: Request, context: RouteContext) {
       updateData.password = await bcrypt.hash(password, 10);
     }
 
+    // 管理员编辑用户时解除登录锁定（改密或仅保存均可解锁）
+    updateData.failedLoginAttempts = 0;
+    updateData.lockedUntil = null;
+
     const user = await prisma.user.update({
       where: { id },
       data: updateData,

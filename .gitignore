@@ -48,6 +48,10 @@ next-env.d.ts
 # local database
 *.db
 
+# 数据导出文件（含密码哈希，禁止入库）
+data/
+classes-users.json
+
 # cursor IDE
 .cursor/
 
