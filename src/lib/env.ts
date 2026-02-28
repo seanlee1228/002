@@ -13,6 +13,14 @@ const REQUIRED_VARS = [
 const OPTIONAL_VARS = [
   { key: "DEEPSEEK_API_KEY", desc: "AI 分析功能" },
   { key: "AI_CRON_SECRET", desc: "AI 定时分析" },
+  {
+    key: "DEPLOY_WEBHOOK_SECRET",
+    desc: "GitHub Webhook 自动部署密钥（与 GitHub 仓库 Webhook 的 Secret 一致）",
+  },
+  {
+    key: "DEPLOY_PROJECT_PATH",
+    desc: "部署脚本执行的项目根路径（默认 process.cwd）",
+  },
 ] as const;
 
 export function validateEnv() {

@@ -27,9 +27,11 @@
 
 ### 安装与运行
 
+以下命令均在**项目根目录**执行（先 `cd` 到克隆下来的项目目录）：
+
 ```bash
-# 1. 克隆项目
-git clone <repo-url> && cd <project-dir>
+# 1. 进入项目目录（路径请按本机实际修改）
+cd /path/to/class-routine-score-system
 
 # 2. 安装依赖（自动执行 prisma generate）
 npm install
@@ -220,17 +222,25 @@ import type { User } from "@prisma/client";
 
 生产环境使用阿里云轻量服务器 + PM2 + Nginx。**每次部署请按 [docs/deploy-steps.md](docs/deploy-steps.md) 中的步骤执行。**
 
+**约定：本机所有 npm/git 命令均需先 `cd` 到项目根目录再执行。**
+
 ### 部署流程（推荐）
 
-**本机一条命令：** `npm run deploy:push`（自动导出数据 + 提交 + 推送）
+**本机（先 cd 到项目根）：**
+```bash
+cd /Users/seanlee/Desktop/00-Cursor与AI工具/开发项目/class-routine-score-system
+npm run deploy:push
+```
+一条命令完成：导出数据 + 提交 + 推送。
 
-**服务器一条命令：** Workbench 中执行 `cd /www/wwwroot/scoring-system && ./scripts/server-deploy.sh`；若需同时用本地班级/用户替换服务器数据，先上传 `data/classes-users.json` 到服务器 `data/`，再执行 `./scripts/server-deploy.sh --with-data`。
+**服务器（Workbench 终端）：** `cd /www/wwwroot/scoring-system && ./scripts/server-deploy.sh`；若需同时用本地班级/用户替换服务器数据，先上传 `data/classes-users.json` 到服务器 `data/`，再执行 `./scripts/server-deploy.sh --with-data`。
 
-**通过 Workbench 部署**（无需本机 SSH）：阿里云控制台 → 实例 → 远程连接 → Workbench 登录 → 终端执行上述命令。详见 [docs/deploy-steps.md](docs/deploy-steps.md) 中「通过 Workbench 部署」小节。
+**通过 Workbench 部署**（无需本机 SSH）：阿里云控制台 → 实例 → 远程连接 → Workbench 登录 → 终端执行上述服务器命令。详见 [docs/deploy-steps.md](docs/deploy-steps.md) 中「通过 Workbench 部署」小节。
 
-**步骤 1：本机推送代码**
+**步骤 1：本机推送代码（在项目根目录执行）**
 
 ```bash
+cd /Users/seanlee/Desktop/00-Cursor与AI工具/开发项目/class-routine-score-system
 git add .
 git commit -m "feat: 本次更新描述"
 git push origin main
@@ -266,8 +276,9 @@ cd /www/wwwroot/scoring-system
 
 若在本地修改了班级、用户信息，需单独导出并导入到服务器：
 
-**本机导出：**
+**本机导出（在项目根目录执行）：**
 ```bash
+cd /Users/seanlee/Desktop/00-Cursor与AI工具/开发项目/class-routine-score-system
 npm run data:export
 # 生成 data/classes-users.json
 ```
